@@ -76,10 +76,13 @@ if __name__ == '__main__':
                         default=5, type=int)
     parser.add_argument('--period_averaging_alpha',
                         help='how much new period to mix in avg (0..1)',
-                        default=0.1, type=float)
-    parser.add_argument('--timestamp_file',
+                        default=0.2, type=float)
+    parser.add_argument('--timestamp_file', required=False,
                         help='name of file to read frame time stamps from',
                         default=None)
+    parser.add_argument('--max_frames',
+                        help='maximum number of frames to compute', type=int,
+                        default=1000000)
     parser.add_argument('--output_dir', help='name of output directory',
                         default='frames')
 
@@ -102,8 +105,8 @@ if __name__ == '__main__':
     for evs in events:
         if evs.size > 0:
             algo.process_events(evs)
-            if algo.get_frame_number() > 150:
-                print('XXX premature exit!')
+            if algo.get_frame_number() > args.max_frames:
+                print('reached maximum number of frames!')
                 break
     
     print(f'merged {algo.get_number_merged()} events of ',
