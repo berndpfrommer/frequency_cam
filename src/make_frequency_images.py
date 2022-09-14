@@ -22,9 +22,14 @@ makes sequence of frequency images from ros2 bag
 import cv2
 import numpy as np
 import argparse
+
 from pathlib import Path
 from frequency_cam import FrequencyCam
 from read_bag_ros2 import read_bag, EventCDConverter
+
+
+global out_ts_file
+out_ts_file = None  # global variable
 
 
 def make_bg_image(img, events):
@@ -40,21 +45,31 @@ def make_bg_image(img, events):
 
 def write_image_cb(frame_number, events, freq_map, freq_range, extra_args):
     img = np.zeros([freq_map.shape[0], freq_map.shape[1], 3], dtype=np.uint8)
-    img = make_bg_image(img, events)
+    if extra_args['make_bg_image']:
+        img = make_bg_image(img, events)
     nz_idx = freq_map > 0  # indices of non-zero elements of frequency map
     fname = str(extra_args['output_dir'] / f"frame_{frame_number:05d}.jpg")
     # print(f'fmap min: {np.min(freq_map)}  max: {np.max(freq_map)}')
+    use_log = extra_args['log_scale']
     if nz_idx.sum() > 0:
-        r = freq_range[1] - freq_range[0]
+        fr_tf = np.log10(freq_range) if use_log else freq_range
+        freq_map_tf = \
+            np.where(freq_map > 0, np.log10(freq_map), 0) if use_log \
+            else freq_map
+        r = fr_tf[1] - fr_tf[0]
         # scale image into range of 0..255
-        scaled = cv2.convertScaleAbs(freq_map, alpha=255.0 / r,
-                                     beta=-freq_range[0] * 255.0 / r)
+        scaled = cv2.convertScaleAbs(freq_map_tf, alpha=255.0 / r,
+                                     beta=-fr_tf[0] * 255.0 / r)
         img_scaled = cv2.applyColorMap(scaled, cv2.COLORMAP_JET)
         # only color those points where valid events happen
         img[nz_idx, :] = img_scaled[nz_idx, :]
         cv2.imwrite(fname, img)
     else:
         cv2.imwrite(fname, img)
+
+    global out_ts_file
+    if out_ts_file is not None:
+        out_ts_file.write(f"{events[-1][-1]['t']*1000:d} {frame_number:d}\n")
 
     if frame_number % 10 == 0:
         print('writing image: ', frame_number)
@@ -80,15 +95,33 @@ if __name__ == '__main__':
     parser.add_argument('--timestamp_file', required=False,
                         help='name of file to read frame time stamps from',
                         default=None)
+    parser.add_argument('--output_timestamp_file', required=False,
+                        help='name of file to write time stamps to',
+                        default=None)
+    parser.add_argument('--timeslice', required=False, type=float,
+                        help='timeslice for each frame [seconds]',
+                        default=None)
+    parser.add_argument('--reset_threshold', required=False, type=float,
+                        help='relative error at which to restart averaging',
+                        default=1e6)
     parser.add_argument('--max_frames',
                         help='maximum number of frames to compute', type=int,
                         default=1000000)
     parser.add_argument('--output_dir', help='name of output directory',
                         default='frames')
+    parser.add_argument('--log_scale', action='store_true',
+                        required=False, help='plot frequency on log scale')
+    parser.set_defaults(log_scale=False)
+    parser.add_argument('--no_bg', action='store_true',
+                        required=False, help='do not show background noise')
+    parser.set_defaults(no_bg=False)
 
     args = parser.parse_args()
     
     events, res = read_bag(args.bag, args.topic, converter=EventCDConverter())
+
+    if args.output_timestamp_file is not None:
+        out_ts_file = open(args.output_timestamp_file, 'w')
 
     # make directory
     Path(args.output_dir).mkdir(parents=True, exist_ok=True)
@@ -97,15 +130,19 @@ if __name__ == '__main__':
                         min_freq=args.freq_min, max_freq=args.freq_max,
                         cutoff_period=args.cutoff_period,
                         frame_timestamps=args.timestamp_file,
+                        frame_timeslice=args.timeslice,
                         period_averaging_alpha=args.period_averaging_alpha,
-                        extra_args={'output_dir': Path(args.output_dir)})
+                        reset_threshold=args.reset_threshold,
+                        extra_args={'output_dir': Path(args.output_dir),
+                                    'log_scale': args.log_scale,
+                                    'make_bg_image': not args.no_bg})
 
     algo.set_output_callback(write_image_cb)
 
     for evs in events:
         if evs.size > 0:
             algo.process_events(evs)
-            if algo.get_frame_number() > args.max_frames:
+            if algo.get_frame_number() >= args.max_frames:
                 print('reached maximum number of frames!')
                 break
     
