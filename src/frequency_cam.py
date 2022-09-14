@@ -35,10 +35,10 @@ debug = open("freq.txt", "w")
 
 State = np.dtype(
     {'names': ['t_flip', 'L',  'L_lag', 'period_avg', 'p', 'skip', 'idx', 'tp'],
-     'formats': ['<f4', '<f4', '<f4',     '<f4',    '<i1', '<u1', '<u1',
+     'formats': ['<i8', '<f4', '<f4',     '<f4',    '<i1', '<u1', '<u1',
                  TimeAndPolarity * 4],
-     'offsets': [0,       4,      8,      12,     16,    17,     18,   19],
-     'itemsize': 39})
+     'offsets': [0,       8,      12,      16,     20,    21,     22,   23],
+     'itemsize': 43})
 
 
 class FrequencyCam():
@@ -174,6 +174,8 @@ class FrequencyCam():
                 dt = (t - self._state['t_flip'][y, x]) * 1.0e-6
                 # update the flip time
                 self._state['t_flip'][y, x] = t
+                if x == 78 and y == 401:
+                    debug.write(f"{dt} range: {self._dt_min} {self._dt_max}")
                 if dt >= self._dt_min and dt <= self._dt_max:
                     # measured period is within acceptable freq range
                     curr_avg = self._state['period_avg'][y, x]
@@ -194,10 +196,11 @@ class FrequencyCam():
                             self._state['period_avg'][y, x] = \
                                 curr_avg * self._one_minus_dt_mix \
                                 + dt * self._dt_mix
-            if x == 319 and y == 239:
+            if x == 78 and y == 401:
                 dt = (t - self._state['t_flip'][y, x]) * 1.0e-6
                 debug.write(f"{t} {dp} {L_k} {L_km1} {L_km2} {dt}" 
-                            + f" {self._state['period_avg'][y, x]}\n")
+                            + f" {self._state['period_avg'][y, x]} {t}"
+                            + f" {self._state['t_flip'][y, x]}\n")
 
             # update twice lagged signal
             self._state['L_lag'][y, x] = L_km1
