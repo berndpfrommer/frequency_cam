@@ -33,7 +33,8 @@ last_events = []
 t_curr = 0   # current time stamp
 frame_count = 0  # current frame
 frame_time_stamps = []
-freq_range = [0, 0]
+freq_range = np.array([0, 0])
+use_log_scale = False
 
 
 def make_bg_image(img, events):
@@ -56,10 +57,14 @@ def write_image_cb(ts, freq_map):
     fname = str(Path(output_dir) / f"frame_{frame_count:05d}.jpg")
 
     if nz_idx.sum() > 0:
-        r = freq_range[1] - freq_range[0]
+        fr_tf = np.log10(freq_range) if use_log_scale else freq_range
+        freq_map_tf = \
+            np.where(freq_map > 0, np.log10(freq_map), 0) if use_log_scale \
+            else freq_map
+        r = fr_tf[1] - fr_tf[0]
         # scale image into range of 0..255
-        scaled = cv2.convertScaleAbs(freq_map, alpha=255.0 / r,
-                                     beta=-freq_range[0] * 255.0 / r)
+        scaled = cv2.convertScaleAbs(freq_map_tf, alpha=255.0 / r,
+                                     beta=-fr_tf[0] * 255.0 / r)
         img_scaled = cv2.applyColorMap(scaled, cv2.COLORMAP_JET)
         img[nz_idx, :] = img_scaled[nz_idx, :]
         if frame_count % 10 == 0:
@@ -96,9 +101,14 @@ if __name__ == '__main__':
                         default='mv_timestamps.txt')
     parser.add_argument('--output_dir', help='name of output directory',
                         default='frames')
+    parser.add_argument('--log_scale', action='store_true',
+                        required=False, help='color frequency on log scale')
+    parser.set_defaults(log_scale=False)
 
     args = parser.parse_args()
-    
+
+    use_log_scale = args.log_scale
+
     events, res = read_bag(args.bag, args.topic, converter=EventCDConverter())
 
     algo = FrequencyMapAsyncAlgorithm(
@@ -109,8 +119,7 @@ if __name__ == '__main__':
     algo.set_output_callback(write_image_cb)
 
     output_dir = args.output_dir
-    freq_range[0] = args.freq_min
-    freq_range[1] = args.freq_max
+    freq_range = np.array([args.freq_min, args.freq_max])
 
     Path(output_dir).mkdir(parents=True, exist_ok=True)
 
