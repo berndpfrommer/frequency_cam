@@ -71,8 +71,8 @@ def write_image_cb(frame_number, events, freq_map, freq_range, extra_args):
     if out_ts_file is not None:
         out_ts_file.write(f"{events[-1][-1]['t']*1000:d} {frame_number:d}\n")
 
-    if frame_number % 10 == 0:
-        print('writing image: ', frame_number)
+    #if frame_number % 10 == 0:
+    print('writing image: ', frame_number)
 
 
 if __name__ == '__main__':
@@ -89,9 +89,6 @@ if __name__ == '__main__':
     parser.add_argument('--cutoff_period',
                         help='number of events for cutoff period (>4)',
                         default=5, type=int)
-    parser.add_argument('--period_averaging_alpha',
-                        help='how much new period to mix in avg (0..1)',
-                        default=0.2, type=float)
     parser.add_argument('--timestamp_file', required=False,
                         help='name of file to read frame time stamps from',
                         default=None)
@@ -104,9 +101,6 @@ if __name__ == '__main__':
     parser.add_argument('--timeout_cycles', required=False, type=int,
                         help='number of cycles before pixel timeout',
                         default=2)
-    parser.add_argument('--reset_threshold', required=False, type=float,
-                        help='relative error at which to restart averaging',
-                        default=1e6)
     parser.add_argument('--max_frames',
                         help='maximum number of frames to compute', type=int,
                         default=1000000)
@@ -118,6 +112,10 @@ if __name__ == '__main__':
     parser.add_argument('--no_bg', action='store_true',
                         required=False, help='do not show background noise')
     parser.set_defaults(no_bg=False)
+    parser.add_argument('--debug_x', required=False, type=int,
+                        help='x-coordinate of debug pixel', default=-1)
+    parser.add_argument('--debug_y', required=False, type=int,
+                        help='y-coordinate of debug pixel', default=-1)
 
     args = parser.parse_args()
     
@@ -128,15 +126,17 @@ if __name__ == '__main__':
 
     # make directory
     Path(args.output_dir).mkdir(parents=True, exist_ok=True)
-    
+
+    if args.debug_x * args.debug_y < 0:
+        raise Exception('must specify both x and y for debug pixel')
+
     algo = FrequencyCam(width=res[0], height=res[1],
                         min_freq=args.freq_min, max_freq=args.freq_max,
                         cutoff_period=args.cutoff_period,
                         frame_timestamps=args.timestamp_file,
                         frame_timeslice=args.timeslice,
-                        period_averaging_alpha=args.period_averaging_alpha,
-                        reset_threshold=args.reset_threshold,
                         timeout_cycles=args.timeout_cycles,
+                        debug_pixels=(args.debug_x, args.debug_y),
                         extra_args={'output_dir': Path(args.output_dir),
                                     'log_scale': args.log_scale,
                                     'make_bg_image': not args.no_bg})

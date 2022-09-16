@@ -23,22 +23,16 @@ import numpy as np
 import math
 from event_types import EventCD
 
-# for the temporal filter
-TimeAndPolarity = np.dtype({'names': ['t', 'p'],
-                            'formats': ['<u4', '<i1'],
-                            'offsets': [0, 4], 'itemsize': 5})
-
-debug = open("freq.txt", "w")
 #
 # structure to hold the filter state and counters for keeping a clean average
 #
 
 State = np.dtype(
-    {'names': ['t_flip', 'L',  'L_lag', 'period_avg', 'p', 'skip', 'idx', 'tp'],
-     'formats': ['<i8', '<f4', '<f4',     '<f4',    '<i1', '<u1', '<u1',
-                 TimeAndPolarity * 4],
-     'offsets': [0,       8,      12,      16,     20,    21,     22,   23],
-     'itemsize': 43})
+    {'names': ['t_flip_up_down', 't_flip_down_up',
+               'L',  'L_lag', 'period', 'p'],
+     'formats': ['<i8', '<i8', '<f4', '<f4', '<f4', '<i1'],
+     'offsets': [0,       8,     16,   20,     24,     28],
+     'itemsize': 29})
 
 
 class FrequencyCam():
@@ -47,9 +41,8 @@ class FrequencyCam():
                  cutoff_period=20,
                  frame_timestamps=None,
                  frame_timeslice=None,
-                 period_averaging_alpha=0.1,
-                 reset_threshold=0.2,
                  timeout_cycles=2.0,
+                 debug_pixels=(-1, -1),
                  extra_args={}):
         self._res = (width, height)
         self._freq_range = np.array((min_freq, max_freq))
@@ -57,11 +50,9 @@ class FrequencyCam():
         self._frame_number = 0
         self._dt_min = 1.0 / max_freq
         self._dt_max = 1.0 / min_freq
-        self._dt_mix = period_averaging_alpha
-        self._one_minus_dt_mix = 1.0 - self._dt_mix
-        self._reset_thresh = reset_threshold # percent off before average is reset
-        self._max_num_diff_period = int(3)
         self._timeout_cycles = float(timeout_cycles)
+        self._debug_x = debug_pixels[0]
+        self._debug_y = debug_pixels[1]
 
         if frame_timestamps is not None:
             ts = np.loadtxt(frame_timestamps, dtype=np.int64) // 1000
@@ -89,6 +80,8 @@ class FrequencyCam():
         self._merged_events = 0
         self._processed_events = 0
         self._events_this_frame = 0
+        if self._debug_x != -1 and self._debug_y != -1:
+            self._debug = open("freq.txt", "w")
 
         if self._frame_timeslice is None and self._timestamps is None:
             raise Exception(
@@ -105,56 +98,16 @@ class FrequencyCam():
 
     def initialize_state(self, t):
         self._state = np.empty((self._height, self._width), dtype=State)
-        self._state['t_flip'] = t
+        self._state['t_flip_up_down'] = t
+        self._state['t_flip_down_up'] = t
         self._state['L'] = 0
         self._state['L_lag'] = 0
-        self._state['period_avg'] = -1
+        self._state['period'] = -1
         self._state['p'] = -1  # should set to zero?
-        self._state['skip'] = 0
-        self._state['idx'] = 0
-        for lag in range(4):
-            self._state['tp'][lag]['t'] = 0
-            self._state['tp'][lag]['p'] = -1  # should set to zero ?
         self._last_event_time = t
         
     def set_output_callback(self, cb):
         self._callback = cb
-
-    def update_state_baseline(self, events):
-        """updating state using baseline method (with loop ,slow)"""
-        if self._state is None:
-            self.initialize_state(events[0]['t'])
-        self._processed_events += events.shape[0]
-        self._events_this_frame += events.shape[0]
-        self._last_event_time = events['t'][-1]
-        for e in events:
-            x, y, p, t = e['x'], e['y'], e['p'] * 2 - 1, e['t']
-            if self._state['p'][y, x] == 1 and p == -1:
-                dt = (t - self._state['t_flip'][y, x]) * 1.0e-6
-                # update the flip time
-                self._state['t_flip'][y, x] = t
-                if dt >= self._dt_min and dt <= self._dt_max:
-                    # measured period is within acceptable freq range
-                    curr_avg = self._state['period_avg'][y, x]
-                    if curr_avg < 0 or self._dt_mix >= 1.0:
-                        # initialize period average
-                        self._state['period_avg'][y, x] = dt
-                    else:
-                        if abs(dt - curr_avg) > curr_avg * self._reset_thresh:
-                            # measured period is too far off from current estim
-                            self._state[y, x]['skip'] += 1
-                            if self._state[y, x]['skip'] \
-                               > self._max_num_diff_period:
-                                # got too many bad cycles
-                                self._state['skip'][y, x] = 0
-                                curr_avg = dt
-                        else:
-                            # period passes sanity check, compound into average
-                            self._state['period_avg'][y, x] = \
-                                curr_avg * self._one_minus_dt_mix \
-                                + dt * self._dt_mix
-            # remember polarity
-            self._state['p'][y, x] = p
 
     def update_state_filter(self, events):
         """updating state with loop (slow)"""
@@ -171,36 +124,54 @@ class FrequencyCam():
             dp = p - self._state['p'][y, x]
             L_k = self._c[0] * L_km1 + self._c[1] * L_km2 + self._c[2] * dp 
 
-            if (L_k < 0) & (L_km1 >= 0):
+            if L_k < 0 and L_km1 > 0:
+                # ---------------------------------------------
                 # signal crosses the zero line from above
-                dt = (t - self._state['t_flip'][y, x]) * 1.0e-6
+                dt_ud = (t - self._state['t_flip_up_down'][y, x]) * 1.0e-6
+                if dt_ud >= self._dt_min  and dt_ud <= self._dt_max:
+                    # period is within valid range, use it
+                    self._state['period'][y, x] = dt_ud
+                else:
+                    dt_du = (t - self._state['t_flip_down_up'][y, x]) * 1.0e-6
+                    if self._state['period'][y, x] > 0:
+                        to = self._state['period'][y, x] * self._timeout_cycles
+                        if dt_ud > to and dt_du > 0.5 * to:
+                            self._state['period'][y, x] = 0 # stale pixel
+                        elif (dt_du >= 0.5 * self._dt_min) and \
+                             (dt_du <= 0.5 * self._dt_max):
+                            # don't have a valid average, init from half cycle
+                            self._state['period'][y, x] = 2 * dt_du
                 # update the flip time
-                self._state['t_flip'][y, x] = t
-                if dt >= self._dt_min  and dt <= self._dt_max:
-                    # measured period is within acceptable freq range
-                    curr_avg = self._state['period_avg'][y, x]
-                    if curr_avg < 0 or self._dt_mix >= 1.0:
-                        # initialize period average
-                        self._state['period_avg'][y, x] = dt
-                    else:
-                        if abs(dt - curr_avg) > curr_avg * self._reset_thresh:
-                            # measured period is too far off from current estim
-                            self._state[y, x]['skip'] += 1
-                            if self._state[y, x]['skip'] \
-                               > self._max_num_diff_period:
-                                # got too many bad cycles
-                                self._state['skip'][y, x] = 0
-                                curr_avg = dt
-                        else:
-                            # period passes sanity check, compound into average
-                            self._state['period_avg'][y, x] = \
-                                curr_avg * self._one_minus_dt_mix \
-                                + dt * self._dt_mix
-            if x == 148 and y == 362:
-                dt = (t - self._state['t_flip'][y, x]) * 1.0e-6
-                debug.write(f"{t} {dp} {L_k} {L_km1} {L_km2} {dt}" 
-                            + f" {self._state['period_avg'][y, x]}"
-                            + f" {self._dt_min} {self._dt_max}\n")
+                self._state['t_flip_up_down'][y, x] = t
+            elif L_k > 0 and L_km1 < 0:
+                # ---------------------------------------------
+                # signal crosses the zero line from below
+                dt_du = (t - self._state['t_flip_down_up'][y, x]) * 1.0e-6
+                if self._state['period'][y, x] <= 0 and \
+                   dt_du >= self._dt_min  and dt_du <= self._dt_max:
+                    # period is within valid range and no average available yet
+                    self._state['period'][y, x] = dt_du
+                else:
+                    # can half-cycle transition be used ?
+                    dt_ud = (t - self._state['t_flip_up_down'][y, x]) * 1.0e-6
+                    if self._state['period'][y, x] > 0:
+                        # have valid period, may have to time it out
+                        to = self._state['period'][y, x] * self._timeout_cycles
+                        if dt_du > to and dt_ud > 0.5 * to:
+                            self._state['period'][y, x] = 0 # stale pixel
+                    elif (dt_ud >= 0.5 * self._dt_min) and \
+                         (dt_ud <= 0.5 * self._dt_max):
+                        # have invalid period, initialize from half-cycle
+                        self._state['period'][y, x] = 2 * dt_ud
+                # update the flip time
+                self._state['t_flip_down_up'][y, x] = t
+
+            if x == self._debug_x and y == self._debug_y:
+                dt = (t - max(self._state['t_flip_up_down'][y, x],
+                              self._state['t_flip_down_up'][y, x])) * 1e-6
+                self._debug.write(f"{t} {dp} {L_k} {L_km1} {L_km2} {dt}" 
+                                  + f" {self._state['period'][y, x]}"
+                                  + f" {self._dt_min} {self._dt_max}\n")
 
             # update twice lagged signal
             self._state['L_lag'][y, x] = L_km1
@@ -210,14 +181,16 @@ class FrequencyCam():
             self._state['p'][y, x] = p
 
     def make_frequency_map(self, t_now):
-        period = self._state['period_avg']
+        period = self._state['period']
         # filter out:
         #   - pixels where no period has been detected yet
         #   - pixels that have not flipped for two periods
-        dt = t_now - self._state['t_flip']
+
+        dt = t_now - np.maximum(self._state['t_flip_up_down'],
+                                self._state['t_flip_down_up'])
         fm = np.where((period > 0)
                       & (dt < 1e6 * period * self._timeout_cycles)
-                      & (dt < 1e6 * self._dt_max),
+                      & (dt < 1e6 * self._dt_max * self._timeout_cycles),
                       1.0 / period, 0)
         
         return fm
@@ -228,10 +201,7 @@ class FrequencyCam():
             self.update_state(event_array)
 
     def update_state(self, event_array):
-        if self._c is None:
-            self.update_state_baseline(event_array)
-        else:
-            self.update_state_filter(event_array)
+        self.update_state_filter(event_array)
         self._events.append(event_array)
 
     def process_events(self, events):
@@ -270,6 +240,7 @@ class FrequencyCam():
                 event_list.append(e)
             # process accumulated events
             event_list = self.update_state_from_list(event_list)
+
 
     def process_events_to_frames(self, events):
         # handle case of first event received
