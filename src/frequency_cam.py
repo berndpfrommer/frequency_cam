@@ -24,7 +24,7 @@ import math
 from event_types import EventCD
 
 #
-# structure to hold the filter state and counters for keeping a clean average
+# structure to hold the filter state and aux variables
 #
 
 State = np.dtype(
@@ -82,6 +82,7 @@ class FrequencyCam():
         self._events_this_frame = 0
         if self._debug_x != -1 and self._debug_y != -1:
             self._debug = open("freq.txt", "w")
+            self._readout = open("readout.txt", "w")
 
         if self._frame_timeslice is None and self._timestamps is None:
             raise Exception(
@@ -139,7 +140,7 @@ class FrequencyCam():
                             self._state['period'][y, x] = 0 # stale pixel
                         elif (dt_du >= 0.5 * self._dt_min) and \
                              (dt_du <= 0.5 * self._dt_max):
-                            # don't have a valid average, init from half cycle
+                            # don't have a valid period, init from half cycle
                             self._state['period'][y, x] = 2 * dt_du
                 # update the flip time
                 self._state['t_flip_up_down'][y, x] = t
@@ -149,7 +150,7 @@ class FrequencyCam():
                 dt_du = (t - self._state['t_flip_down_up'][y, x]) * 1.0e-6
                 if self._state['period'][y, x] <= 0 and \
                    dt_du >= self._dt_min  and dt_du <= self._dt_max:
-                    # period is within valid range and no average available yet
+                    # period is within valid range and no period available yet
                     self._state['period'][y, x] = dt_du
                 else:
                     # can half-cycle transition be used ?
@@ -186,13 +187,15 @@ class FrequencyCam():
         #   - pixels where no period has been detected yet
         #   - pixels that have not flipped for two periods
 
-        dt = t_now - np.maximum(self._state['t_flip_up_down'],
-                                self._state['t_flip_down_up'])
+        dt = (t_now - np.maximum(self._state['t_flip_up_down'],
+                                 self._state['t_flip_down_up'])) * 1e-6
         fm = np.where((period > 0)
-                      & (dt < 1e6 * period * self._timeout_cycles)
-                      & (dt < 1e6 * self._dt_max * self._timeout_cycles),
+                      & (dt < period * self._timeout_cycles)
+                      & (dt < self._dt_max * self._timeout_cycles),
                       1.0 / period, 0)
-        
+        if self._debug_x != -1 and self._debug_y != -1:
+            self._readout.write(
+                f'{t_now * 1e-6} {fm[self._debug_y, self._debug_x]}\n')
         return fm
 
     def update_state_from_list(self, event_list):

@@ -71,7 +71,6 @@ def write_image_cb(frame_number, events, freq_map, freq_range, extra_args):
     if out_ts_file is not None:
         out_ts_file.write(f"{events[-1][-1]['t']*1000:d} {frame_number:d}\n")
 
-    #if frame_number % 10 == 0:
     print('writing image: ', frame_number)
 
 
