@@ -49,6 +49,7 @@ class FrequencyCam():
                  frame_timeslice=None,
                  period_averaging_alpha=0.1,
                  reset_threshold=0.2,
+                 timeout_cycles=2.0,
                  extra_args={}):
         self._res = (width, height)
         self._freq_range = np.array((min_freq, max_freq))
@@ -60,6 +61,7 @@ class FrequencyCam():
         self._one_minus_dt_mix = 1.0 - self._dt_mix
         self._reset_thresh = reset_threshold # percent off before average is reset
         self._max_num_diff_period = int(3)
+        self._timeout_cycles = float(timeout_cycles)
 
         if frame_timestamps is not None:
             ts = np.loadtxt(frame_timestamps, dtype=np.int64) // 1000
@@ -174,9 +176,7 @@ class FrequencyCam():
                 dt = (t - self._state['t_flip'][y, x]) * 1.0e-6
                 # update the flip time
                 self._state['t_flip'][y, x] = t
-                if x == 78 and y == 401:
-                    debug.write(f"{dt} range: {self._dt_min} {self._dt_max}")
-                if dt >= self._dt_min and dt <= self._dt_max:
+                if dt >= self._dt_min  and dt <= self._dt_max:
                     # measured period is within acceptable freq range
                     curr_avg = self._state['period_avg'][y, x]
                     if curr_avg < 0 or self._dt_mix >= 1.0:
@@ -196,11 +196,11 @@ class FrequencyCam():
                             self._state['period_avg'][y, x] = \
                                 curr_avg * self._one_minus_dt_mix \
                                 + dt * self._dt_mix
-            if x == 78 and y == 401:
+            if x == 148 and y == 362:
                 dt = (t - self._state['t_flip'][y, x]) * 1.0e-6
                 debug.write(f"{t} {dp} {L_k} {L_km1} {L_km2} {dt}" 
-                            + f" {self._state['period_avg'][y, x]} {t}"
-                            + f" {self._state['t_flip'][y, x]}\n")
+                            + f" {self._state['period_avg'][y, x]}"
+                            + f" {self._dt_min} {self._dt_max}\n")
 
             # update twice lagged signal
             self._state['L_lag'][y, x] = L_km1
@@ -214,10 +214,11 @@ class FrequencyCam():
         # filter out:
         #   - pixels where no period has been detected yet
         #   - pixels that have not flipped for two periods
-        fm = np.where(
-            (period > 0)
-            & (t_now - self._state['t_flip'] < 2e6 * period),
-            1.0 / self._state['period_avg'], 0)
+        dt = t_now - self._state['t_flip']
+        fm = np.where((period > 0)
+                      & (dt < 1e6 * period * self._timeout_cycles)
+                      & (dt < 1e6 * self._dt_max),
+                      1.0 / period, 0)
         
         return fm
 

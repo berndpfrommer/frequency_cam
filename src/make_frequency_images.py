@@ -101,6 +101,9 @@ if __name__ == '__main__':
     parser.add_argument('--timeslice', required=False, type=float,
                         help='timeslice for each frame [seconds]',
                         default=None)
+    parser.add_argument('--timeout_cycles', required=False, type=int,
+                        help='number of cycles before pixel timeout',
+                        default=2)
     parser.add_argument('--reset_threshold', required=False, type=float,
                         help='relative error at which to restart averaging',
                         default=1e6)
@@ -133,6 +136,7 @@ if __name__ == '__main__':
                         frame_timeslice=args.timeslice,
                         period_averaging_alpha=args.period_averaging_alpha,
                         reset_threshold=args.reset_threshold,
+                        timeout_cycles=args.timeout_cycles,
                         extra_args={'output_dir': Path(args.output_dir),
                                     'log_scale': args.log_scale,
                                     'make_bg_image': not args.no_bg})
