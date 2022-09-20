@@ -84,10 +84,6 @@ class FrequencyCam():
             self._debug = open("freq.txt", "w")
             self._readout = open("readout.txt", "w")
 
-        if self._frame_timeslice is None and self._timestamps is None:
-            raise Exception(
-                "must specify frame_timeslice or frame_timestamps")
-
     def get_frame_number(self):
         return self._frame_number
 
@@ -113,7 +109,7 @@ class FrequencyCam():
     def update_state_filter(self, events):
         """updating state with loop (slow)"""
         if self._state is None:
-            self.initialize_state(events[0]['t'])
+            self.initialize_state(events['t'][0])
         self._processed_events += events.shape[0]
         self._events_this_frame += events.shape[0]
         self._last_event_time = events['t'][-1]
@@ -182,6 +178,8 @@ class FrequencyCam():
             self._state['p'][y, x] = p
 
     def make_frequency_map(self, t_now):
+        if self._state is None:
+            return np.zeros((self._height, self._width), dtype=np.float32)
         period = self._state['period']
         # filter out:
         #   - pixels where no period has been detected yet
@@ -237,20 +235,23 @@ class FrequencyCam():
                         self._frame_number, self._events, fmap,
                         self._freq_range, self._extra_args)
                     self._events = []
-                    print(f"frame {self._frame_number} has events: {self._events_this_frame}")
+                    print(f"frame {self._frame_number} has events: ",
+                          f"{self._events_this_frame}")
                     self._events_this_frame = 0
                     self._frame_number += 1
                 event_list.append(e)
             # process accumulated events
             event_list = self.update_state_from_list(event_list)
 
-
+    def process_events_no_callback(self, events):
+        self.update_state(events)
+        
     def process_events_to_frames(self, events):
         # handle case of first event received
         if self._current_frame_end_time is None:
             self._current_frame_end_time = events[0]['t'] \
                 + self._frame_timeslice
-    
+   
         if events[-1]['t'] < self._current_frame_end_time:
             # in the not unusual case where all events in this call
             # belong to the current frame and there is no cross-over
