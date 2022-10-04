@@ -166,9 +166,11 @@ class FrequencyCam():
             if x == self._debug_x and y == self._debug_y:
                 dt = (t - max(self._state['t_flip_up_down'][y, x],
                               self._state['t_flip_down_up'][y, x])) * 1e-6
-                self._debug.write(f"{t} {dp} {L_k} {L_km1} {L_km2} {dt}" 
+                self._debug.write(f"{t + self.time_offset} {dp} {L_k}"
+                                  + f" {L_km1} {L_km2} {dt}" 
                                   + f" {self._state['period'][y, x]}"
                                   + f" {self._dt_min} {self._dt_max}\n")
+                self._debug.flush()
 
             # update twice lagged signal
             self._state['L_lag'][y, x] = L_km1
@@ -187,13 +189,17 @@ class FrequencyCam():
 
         dt = (t_now - np.maximum(self._state['t_flip_up_down'],
                                  self._state['t_flip_down_up'])) * 1e-6
-        fm = np.where((period > 0)
-                      & (dt < period * self._timeout_cycles)
-                      & (dt < self._dt_max * self._timeout_cycles),
-                      1.0 / period, 0)
+        fm = np.divide(1.0, period,
+                       out=np.zeros_like(period),
+                       where=((period > 0)
+                              & (dt < period * self._timeout_cycles)
+                              & (dt < self._dt_max * self._timeout_cycles)))
+
+            
         if self._debug_x != -1 and self._debug_y != -1:
             self._readout.write(
-                f'{t_now * 1e-6} {fm[self._debug_y, self._debug_x]}\n')
+                f'{(t_now  + self.time_offset) * 1e-6} {fm[self._debug_y, self._debug_x]}\n')
+            self._readout.flush()
         return fm
 
     def update_state_from_list(self, event_list):
@@ -243,7 +249,8 @@ class FrequencyCam():
             # process accumulated events
             event_list = self.update_state_from_list(event_list)
 
-    def process_events_no_callback(self, events):
+    def process_events_no_callback(self, events, time_offset):
+        self.time_offset = time_offset
         self.update_state(events)
         
     def process_events_to_frames(self, events):

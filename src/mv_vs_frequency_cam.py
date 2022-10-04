@@ -40,6 +40,7 @@ freq_range = np.array([0, 0])
 use_log_scale = False
 fc_algo = None
 labels = None
+offset = None
 
 
 def make_bg_image(events, res):
@@ -55,9 +56,8 @@ def make_bg_image(events, res):
 
 def make_color_image(freq_map, freq_range, use_log_scale):
     fr_tf = np.log10(freq_range) if use_log_scale else freq_range
-    freq_map_tf = \
-        np.where(freq_map > 0, np.log10(freq_map), 0) if use_log_scale \
-        else freq_map
+    freq_map_tf = np.log10(freq_map, out=np.zeros_like(freq_map),
+                           where=(freq_map > 0)) if use_log_scale else freq_map.copy()
     r = fr_tf[1] - fr_tf[0]
     # scale image into range of 0..255
     scaled = cv2.convertScaleAbs(freq_map_tf, alpha=255.0 / r,
@@ -102,7 +102,8 @@ def make_legend(res, patch_height, text_height,
                         dtype=np.uint8)
 
     patches = np.zeros(len(legend_values), dtype=np.float32)
-    for i, v in enumerate(legend_values):
+    lv_tf = np.log10(legend_values) if use_log_scale else legend_values
+    for i, v in enumerate(lv_tf):
         patches[i] = v
     # scale patch frequencies to colors the same way as image
     fr_tf = np.log10(freq_range) if use_log_scale else freq_range
@@ -136,7 +137,7 @@ def mv_write_image_cb(ts, freq_map_orig):
     global last_events
     global last_time
     global frame_count
-    scale = 5.0
+    scale = args.scale
     orig_res = (freq_map_orig.shape[1], freq_map_orig.shape[0])
     freq_map = scale_img(crop_map(freq_map_orig), scale)
     res = (freq_map.shape[1], freq_map.shape[0])
@@ -144,22 +145,26 @@ def mv_write_image_cb(ts, freq_map_orig):
     patch_height = int(args.patch_height * args.scale)
     legend_height = 0 if labels is None else patch_height + text_height
     img = np.zeros([res[1] * 2 + legend_height, res[0], 3], dtype=np.uint8)
+
     if labels is not None:
         legend = make_legend(
-            res, patch_height, text_height, [f"{int(round(l)):d}" for l in labels],
+            res, patch_height, text_height,
+            [f"{int(round(l)):d}" for l in labels],
             labels, use_log_scale)
         img[res[1]:(res[1] + legend_height), :] = legend
     # feed accumulated events into frequency cam algo
     get_fc_image = True
     if get_fc_image:
         for evs in last_events:
-            fc_algo.process_events_no_callback(evs)
+            fc_algo.process_events_no_callback(evs, offset)
     # pull resultant frequency map
     last_time = last_time if len(last_events) == 0 \
         else last_events[-1]['t'][-1]
-    fc_freq_map = scale_img(crop_map(fc_algo.make_frequency_map(last_time)), scale)
+    fc_raw_freq_map = fc_algo.make_frequency_map(last_time)
+    fc_freq_map = scale_img(crop_map(fc_raw_freq_map), scale)
 
-    bg_img = scale_img(crop_map(make_bg_image(last_events, orig_res)), scale)
+    raw_bg_img = make_bg_image(last_events, orig_res)
+    bg_img = scale_img(crop_map(raw_bg_img), scale)
 
     # write fc image into full frame
     img[0:res[1], :] = make_fc_image(fc_freq_map, use_log_scale, bg_img)
@@ -196,7 +201,8 @@ if __name__ == '__main__':
                         default=300, type=float)
     parser.add_argument('--update_freq', help='callback frequency (hz)',
                         default=100, type=float)
-    parser.add_argument('--diff_thresh', help='MV time period diff thresh (usec)',
+    parser.add_argument('--diff_thresh',
+                        help='MV time period diff thresh (usec)',
                         default=100, type=int)
     parser.add_argument('--filter_length',
                         help='MV min num periods for valid detection',
@@ -243,9 +249,10 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     use_log_scale = args.log_scale
-    labels= args.labels
+    labels = args.labels
 
-    events, res = read_bag(args.bag, args.topic, converter=EventCDConverter())
+    events, res, offset = read_bag(args.bag, args.topic, use_sensor_time=False,
+                                   converter=EventCDConverter())
 
     Path(args.mv_output_dir).mkdir(parents=True, exist_ok=True)
 
