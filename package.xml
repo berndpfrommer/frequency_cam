@@ -1,0 +1,39 @@
+<?xml version="1.0"?>
+<package format="3">
+  <name>frequency_cam</name>
+  <version>1.0.0</version>
+  <description>frequency cam ROS/ROS2 package for event based cameras</description>
+  <maintainer email="bernd.pfrommer@gmail.com">Bernd Pfrommer</maintainer>
+  <license>Apache2</license>
+
+  <!-- ROS2 dependencies -->
+  <buildtool_depend condition="$ROS_VERSION == 2">ament_cmake</buildtool_depend>
+  <buildtool_depend condition="$ROS_VERSION == 2">ament_cmake_ros</buildtool_depend>
+  <buildtool_depend condition="$ROS_VERSION == 2">ament_cmake_auto</buildtool_depend>
+  <depend condition="$ROS_VERSION == 2">rclcpp</depend>
+  <depend condition="$ROS_VERSION == 2">rclcpp_components</depend>
+  <depend condition="$ROS_VERSION == 2">rosbag2_cpp</depend>
+  <test_depend condition="$ROS_VERSION == 2">ament_lint_auto</test_depend>
+  <test_depend condition="$ROS_VERSION == 2">ament_lint_common</test_depend>
+  <test_depend condition="$ROS_VERSION == 2">ament_cmake_clang_format</test_depend>
+
+  <!-- ROS1 dependencies -->
+  <buildtool_depend condition="$ROS_VERSION == 1">catkin</buildtool_depend>
+  <depend condition="$ROS_VERSION == 1">nodelet</depend>
+  <depend condition="$ROS_VERSION == 1">roscpp</depend>
+  <depend condition="$ROS_VERSION == 1">rosbag</depend>
+
+  <!-- common ROS1/ROS2 dependencies -->
+  <depend>event_array_msgs</depend>
+  <depend>event_array_codecs</depend>  
+  <depend>image_transport</depend>
+  <depend>cv_bridge</depend>
+
+  <export>
+    <nodelet plugin="${prefix}/nodelet_plugins.xml"/>
+    <!-- this is crucial else the package will not be registered! -->
+    <build_type condition="$ROS_VERSION == 1">catkin</build_type>
+    <build_type condition="$ROS_VERSION == 2">ament_cmake</build_type>
+  </export>
+
+</package>
