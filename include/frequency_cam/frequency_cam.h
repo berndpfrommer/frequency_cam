@@ -16,6 +16,7 @@
 #ifndef FREQUENCY_CAM__FREQUENCY_CAM_H_
 #define FREQUENCY_CAM__FREQUENCY_CAM_H_
 
+#include <event_array_codecs/decoder_factory.h>
 #include <event_array_codecs/event_processor.h>
 #include <stdlib.h>
 
@@ -32,7 +33,8 @@
 
 namespace frequency_cam
 {
-class FrequencyCam : public rclcpp::Node, public event_array_codecs::EventProcessor
+
+  class FrequencyCam : public rclcpp::Node, public event_array_codecs::EventProcessor
 {
 public:
   explicit FrequencyCam(const rclcpp::NodeOptions & options);
@@ -41,7 +43,6 @@ public:
   FrequencyCam(const FrequencyCam &) = delete;
   FrequencyCam & operator=(const FrequencyCam &) = delete;
 
-  // ------- inherited from EventProcessor
   inline void eventCD(uint64_t sensor_time, uint16_t ex, uint16_t ey, uint8_t polarity) override
   {
     Event e(shorten_time(sensor_time), ex, ey, polarity ? 1 : -1);
@@ -49,14 +50,11 @@ public:
     lastEventTime_ = e.t;
     eventCount_++;
   }
-  void eventExtTrigger(uint64_t, uint8_t, uint8_t) {}
-  void finished() {}
-  void rawData(const char *, size_t) {}
-  // ------- end of inherited
+  virtual void eventExtTrigger(uint64_t, uint8_t, uint8_t) override {}
+  virtual void finished() override {}
+  virtual void rawData(const char *, size_t) override {}
 
 private:
-  typedef float variable_t;
-
   struct Event  // event representation for convenience
   {
     Event(uint32_t ta = 0, uint16_t xa = 0, uint16_t ya = 0, int8_t p = 0)
@@ -71,10 +69,12 @@ private:
   };
   friend std::ostream & operator<<(std::ostream & os, const Event & e);
 
+  typedef float variable_t;
+  typedef uint32_t state_time_t;
   struct State  // per-pixel filter state
   {
-    uint32_t t_flip_up_down;  // time of last flip
-    uint32_t t_flip_down_up;  // time of last flip
+    state_time_t t_flip_up_down;  // time of last flip
+    state_time_t t_flip_down_up;  // time of last flip
     variable_t L_km1;         // brightness lagged once
     variable_t L_km2;         // brightness lagged twice
     variable_t period;        // estimated period
@@ -202,7 +202,7 @@ private:
           (lastEventTime_ - std::max(state.t_flip_up_down, state.t_flip_down_up)) * 1e-6;
         U::update(eventFrame, ix, iy, dt, eventImageDt_);
         if (state.period > 0) {
-          const double f = 1.0 / std::max(state.period, 1e-6f);
+          const double f = 1.0 / std::max(state.period, decltype(state.period)(1e-6));
           // filter out any pixels that have not been updated recently
           if (dt < maxDt * timeoutCycles_ && dt * f < timeoutCycles_) {
             rawImg.at<float>(iy, ix) = std::max(T::tf(f), minFreq);
@@ -259,6 +259,7 @@ private:
   double eventImageDt_{0};                        // time slice for event visualization
   float timeoutCycles_{2.0};                      // how many silent cycles until freq is invalid
   bool overlayEvents_{false};
+  event_array_codecs::DecoderFactory<FrequencyCam> decoderFactory_;
   //
   // ------------------ debugging stuff
   uint16_t debugX_{0};

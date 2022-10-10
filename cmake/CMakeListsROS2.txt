@@ -52,6 +52,12 @@ rclcpp_components_register_nodes(frequency_cam "frequency_cam::FrequencyCam")
 ament_auto_add_executable(frequency_cam_node  src/frequency_cam_node.cpp)
 
 
+#
+# cpu benchmark
+#
+ament_auto_add_executable(cpu_benchmark src/cpu_benchmark.cpp)
+
+
 # -------- installation
 
 # the shared library goes into the global lib dir so it can
@@ -62,11 +68,12 @@ install(TARGETS
   DESTINATION lib
 )
 
-# the node must go into the paroject specific lib directory or else
+# the node must go into the project specific lib directory or else
 # the launch file will not find it
 
 install(TARGETS
   frequency_cam_node
+  cpu_benchmark
   DESTINATION lib/${PROJECT_NAME}/)
 
 # install launch files

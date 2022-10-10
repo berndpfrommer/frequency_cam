@@ -31,6 +31,7 @@
 #include <rosbag2_cpp/reader.hpp>
 #include <rosbag2_cpp/readers/sequential_reader.hpp>
 #include <sstream>
+#include <unordered_map>
 
 #ifdef DEBUG  // the debug flag must be set in the header file
 std::ofstream debug("freq.txt");
@@ -166,9 +167,10 @@ void FrequencyCam::playEventsFromBag(const std::string & bagName)
 
 void FrequencyCam::initializeState(uint32_t width, uint32_t height, uint32_t t)
 {
+  RCLCPP_INFO_STREAM(get_logger(), "per-pixel state is: " << sizeof(State) << " bytes");
   RCLCPP_INFO_STREAM(
-    get_logger(), "state image size is: " << (width * height * sizeof(State)) / (1 << 20)
-                                          << "MB (better fit into CPU cache)");
+    get_logger(), "full image size is: " << (width * height * sizeof(State)) / (1 << 20)
+                                         << "MB (better fit into CPU cache)");
   width_ = width;
   height_ = height;
   state_ = new State[width * height];
@@ -339,7 +341,7 @@ void FrequencyCam::callbackEvents(EventArrayConstPtr msg)
   const auto time_base =
     useSensorTime_ ? msg->time_base : rclcpp::Time(msg->header.stamp).nanoseconds();
   lastTime_ = rclcpp::Time(msg->header.stamp);
-  auto decoder = event_array_codecs::Decoder::getInstance(msg->encoding);
+  auto decoder = decoderFactory_.getInstance(msg->encoding);
   decoder->setTimeBase(time_base);
   if (state_ == 0 && !msg->events.empty()) {
     uint64_t t;
