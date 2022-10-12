@@ -13,15 +13,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "frequency_cam/frequency_cam.h"
-
 #include <memory>
 #include <rclcpp/rclcpp.hpp>
+
+#include "frequency_cam/frequency_cam_ros2.h"
 
 int main(int argc, char * argv[])
 {
   rclcpp::init(argc, argv);
-  auto node = std::make_shared<frequency_cam::FrequencyCam>(rclcpp::NodeOptions());
+  auto node = std::make_shared<frequency_cam::FrequencyCamROS>(rclcpp::NodeOptions());
 
   RCLCPP_INFO(node->get_logger(), "node started up!");
   rclcpp::spin(node);  // should not return

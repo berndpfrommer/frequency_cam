@@ -31,7 +31,10 @@ FrequencyCamROS::FrequencyCamROS(const ros::NodeHandle & nh) : nh_(nh)
 
 bool FrequencyCamROS::initialize()
 {
-  eventImageDt_ = 1.0 / std::max(nh_.param<double>("publishing_frequency", 20.0), 1.0);
+  const double fps = std::max(nh_.param<double>("publishing_frequency", 20.0), 1.0);
+  eventImageDt_ = 1.0 / fps;
+  ROS_INFO_STREAM("publishing frequency: " << fps);
+
   useLogFrequency_ = nh_.param<bool>("use_log_frequency", false);
   imageMaker_.setUseLogFrequency(useLogFrequency_);
   overlayEvents_ = nh_.param<bool>("overlay_events", false);
@@ -138,7 +141,6 @@ void FrequencyCamROS::statisticsTimerExpired(const ros::TimerEvent &)
       "%6.2f Mev/s, %8.2f msgs/s, %8.2f nsec/ev  %6.0f usec/msg, drop: %3ld", N / t,
       msgCount_ * 1.0e6 / t, 1e3 * t / N, t / msgCount_, droppedSeq_);
     cam_.resetStatistics();
-    std::cout << msgCount_ << " " << totTime_ << std::endl;
     totTime_ = 0;
     msgCount_ = 0;
   } else {

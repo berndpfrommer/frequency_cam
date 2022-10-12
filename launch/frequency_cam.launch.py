@@ -32,13 +32,11 @@ def launch_setup(context, *args, **kwargs):
         package='frequency_cam',
         executable='frequency_cam_node',
         output='screen',
-#        prefix=['valgrind --tool=callgrind --dump-instr=yes --simulate-cache=yes --collect-jumps=yes'],
-#        prefix=['xterm -e gdb -ex run --args'],
+        # prefix=['valgrind --tool=callgrind --dump-instr=yes
+        #  --simulate-cache=yes --collect-jumps=yes'],
         name='frequency_cam',
         parameters=[
-            {'use_sensor_time': False,
-             'use_sim_time': True,
-             'frame_id': '',
+            {'use_sim_time': False,
              'min_frequency': 220.0,
              'max_frequency': 300.0,
              'cutoff_period': 5.0, # prefilter cutoff period #events
@@ -47,7 +45,7 @@ def launch_setup(context, *args, **kwargs):
              'use_log_frequency': False,
              'overlay_events': True,
              'bag_file': LaunchConfig('bag').perform(context),
-             'slice_time': 0.01}],
+             'publishing_frequency': 20.0}],
         remappings=[
             ('~/events', event_topic),
             ('~/image', image_topic)

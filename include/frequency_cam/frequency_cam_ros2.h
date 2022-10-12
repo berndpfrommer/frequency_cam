@@ -13,47 +13,46 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef FREQUENCY_CAM__FREQUENCY_CAM_ROS1_H_
-#define FREQUENCY_CAM__FREQUENCY_CAM_ROS1_H_
+#ifndef FREQUENCY_CAM__FREQUENCY_CAM_ROS2_H_
+#define FREQUENCY_CAM__FREQUENCY_CAM_ROS2_H_
 
 #include <event_array_codecs/decoder_factory.h>
-#include <event_array_msgs/EventArray.h>
-#include <image_transport/image_transport.h>
-#include <ros/ros.h>
-#include <sensor_msgs/Image.h>
-#include <std_msgs/Header.h>
+
+#include <event_array_msgs/msg/event_array.hpp>
+#include <image_transport/image_transport.hpp>
+#include <rclcpp/rclcpp.hpp>
+#include <sensor_msgs/msg/image.hpp>
+#include <std_msgs/msg/header.hpp>
 
 #include "frequency_cam/frequency_cam.h"
 #include "frequency_cam/image_maker.h"
 
 namespace frequency_cam
 {
-class FrequencyCamROS
+class FrequencyCamROS : public rclcpp::Node
 {
 public:
-  using EventArray = event_array_msgs::EventArray;
+  using EventArray = event_array_msgs::msg::EventArray;
+  explicit FrequencyCamROS(const rclcpp::NodeOptions & options);
 
-  FrequencyCamROS(const ros::NodeHandle & nh);
   FrequencyCamROS(const FrequencyCamROS &) = delete;
   FrequencyCamROS & operator=(const FrequencyCamROS &) = delete;
 
 private:
-  void frameTimerExpired(const ros::TimerEvent &);
-  void statisticsTimerExpired(const ros::TimerEvent &);
+  void frameTimerExpired();
+  void statisticsTimerExpired();
   bool initialize();
-  void imageConnectCallback(const image_transport::SingleSubscriberPublisher &);
-  void eventMsg(const EventArray::ConstPtr & msg);
-
+  void eventMsg(const EventArray::ConstSharedPtr msg);
+  void playEventsFromBag(const std::string & bagName);
   // ------ variables ----
-  ros::NodeHandle nh_;
-  ros::Subscriber eventSub_;  // subscribes to events
-  ros::Timer frameTimer_;     // fires once per frame
-  ros::Timer statsTimer_;     // for statistics printout
+  rclcpp::Time lastPubTime_{0};
+  rclcpp::Subscription<EventArray>::SharedPtr eventSub_;
+  rclcpp::TimerBase::SharedPtr frameTimer_;
+  rclcpp::TimerBase::SharedPtr statsTimer_;
   image_transport::Publisher imagePub_;
   event_array_codecs::DecoderFactory<FrequencyCam> decoderFactory_;
-  std_msgs::Header header_;  // header with frame id etc
-  uint32_t seq_{0};          // ROS1 header seqno
-  bool isSubscribedToEvents_{false};
+  std_msgs::msg::Header header_;
+
   uint32_t width_{0};          // image width
   uint32_t height_{0};         // image height
   double eventImageDt_{0.01};  // time between published images
@@ -71,4 +70,4 @@ private:
   uint16_t debugY_;
 };
 }  // namespace frequency_cam
-#endif  // FREQUENCY_CAM__FREQUENCY_CAM_ROS1_H_
+#endif  // FREQUENCY_CAM__FREQUENCY_CAM_ROS2_H_
