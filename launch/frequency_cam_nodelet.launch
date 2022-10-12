@@ -1,0 +1,13 @@
+<launch>
+  <arg name="camera" default="/event_camera"/>
+  <node pkg="nodelet" type="nodelet"
+    name="frequency_cam" args="standalone frequency_cam/FrequencyCamNodelet"
+    clear_params="true" output="screen">
+    <param name="publishing_frequency" value="20.0"/>
+    <param name="min_frequency" value="10"/>
+    <param name="max_frequency" value="1000"/>
+    <param name="debug_x" value="319"/>
+    <param name="debug_y" value="239"/>
+    <remap from="~events" to="$(arg camera)/events"/>
+  </node>
+</launch>

@@ -16,33 +16,27 @@
 #ifndef FREQUENCY_CAM__FREQUENCY_CAM_H_
 #define FREQUENCY_CAM__FREQUENCY_CAM_H_
 
-#include <event_array_codecs/decoder_factory.h>
 #include <event_array_codecs/event_processor.h>
-#include <stdlib.h>
 
-#include <cstdlib>
-#include <event_array_msgs/msg/event_array.hpp>
-#include <image_transport/image_transport.hpp>
+#include <cstdint>
+#include <fstream>
 #include <iostream>
 #include <opencv2/core/core.hpp>
-#include <opencv2/imgproc.hpp>
-#include <rclcpp/rclcpp.hpp>
-#include <vector>
 
 // #define DEBUG
 
 namespace frequency_cam
 {
-
-  class FrequencyCam : public rclcpp::Node, public event_array_codecs::EventProcessor
+class FrequencyCam : public event_array_codecs::EventProcessor
 {
 public:
-  explicit FrequencyCam(const rclcpp::NodeOptions & options);
+  FrequencyCam(){};
   ~FrequencyCam();
 
   FrequencyCam(const FrequencyCam &) = delete;
   FrequencyCam & operator=(const FrequencyCam &) = delete;
 
+  // ------------- inherited from EventProcessor
   inline void eventCD(uint64_t sensor_time, uint16_t ex, uint16_t ey, uint8_t polarity) override
   {
     Event e(shorten_time(sensor_time), ex, ey, polarity ? 1 : -1);
@@ -53,6 +47,20 @@ public:
   virtual void eventExtTrigger(uint64_t, uint8_t, uint8_t) override {}
   virtual void finished() override {}
   virtual void rawData(const char *, size_t) override {}
+  // ------------- end of inherited from EventProcessor
+
+  bool initialize(
+    double minFreq, double maxFreq, double cutoffPeriod, int timeoutCycles, uint16_t debugX,
+    uint16_t debugY);
+
+  void initializeState(uint32_t width, uint32_t height, uint64_t t);
+
+  // returns frequency image
+  cv::Mat makeFrequencyAndEventImage(
+    cv::Mat * eventImage, bool overlayEvents, bool useLogFrequency, float dt) const;
+
+  void getStatistics(size_t * numEvents) const;
+  void resetStatistics();
 
 private:
   struct Event  // event representation for convenience
@@ -69,31 +77,19 @@ private:
   };
   friend std::ostream & operator<<(std::ostream & os, const Event & e);
 
+  // define the per-pixel filter state
   typedef float variable_t;
   typedef uint32_t state_time_t;
-  struct State  // per-pixel filter state
+  struct State
   {
     state_time_t t_flip_up_down;  // time of last flip
     state_time_t t_flip_down_up;  // time of last flip
-    variable_t L_km1;         // brightness lagged once
-    variable_t L_km2;         // brightness lagged twice
-    variable_t period;        // estimated period
-    int8_t polarity;          // last polarity
+    variable_t L_km1;             // brightness lagged once
+    variable_t L_km2;             // brightness lagged twice
+    variable_t period;            // estimated period
+    int8_t polarity;              // last polarity
   };
 
-  using EventArray = event_array_msgs::msg::EventArray;
-  using EventArrayConstPtr = EventArray::ConstSharedPtr;
-  void playEventsFromBag(const std::string & bagName);
-  bool initialize();
-  void initializeState(uint32_t width, uint32_t height, uint32_t t);
-  void callbackEvents(EventArrayConstPtr msg);
-  std::vector<float> findLegendValuesAndText(
-    const double minVal, const double maxVal, std::vector<std::string> * text) const;
-
-  void addLegend(cv::Mat * img, const double minVal, const double maxVal) const;
-  cv::Mat makeImage(uint64_t t) const;
-  void publishImage();
-  void statistics();
   inline void updateState(State * state, const Event & e)
   {
     State & s = *state;
@@ -155,8 +151,8 @@ private:
 #ifdef DEBUG
     if (e.x == debugX_ && e.y == debugY_) {
       const double dt = (e.t - std::max(s.t_flip_up_down, s.t_flip_down_up)) * 1e-6;
-      debug << e.t + timeOffset_ << " " << dp << " " << L_k << " " << s.L_km1 << " " << s.L_km2
-            << " " << dt << " " << s.period << " " << dtMin_ << " " << dtMax_ << std::endl;
+      debug_ << e.t + timeOffset_ << " " << dp << " " << L_k << " " << s.L_km1 << " " << s.L_km2
+             << " " << dt << " " << s.period << " " << dtMin_ << " " << dtMax_ << std::endl;
     }
 #endif
     s.L_km2 = s.L_km1;
@@ -183,12 +179,14 @@ private:
       }
     }
   };
+
   struct NoEventFrameUpdater
   {
     static void update(cv::Mat *, int, int, double, double){};
   };
+
   template <class T, class U>
-  cv::Mat makeTransformedFrequencyImage(cv::Mat * eventFrame) const
+  cv::Mat makeTransformedFrequencyImage(cv::Mat * eventFrame, float eventImageDt) const
   {
     cv::Mat rawImg(height_, width_, CV_32FC1, 0.0);
     const double maxDt = 1.0 / freq_[0] * timeoutCycles_;
@@ -200,7 +198,7 @@ private:
         // compute time since last flip up or down
         const double dt =
           (lastEventTime_ - std::max(state.t_flip_up_down, state.t_flip_down_up)) * 1e-6;
-        U::update(eventFrame, ix, iy, dt, eventImageDt_);
+        U::update(eventFrame, ix, iy, dt, eventImageDt);
         if (state.period > 0) {
           const double f = 1.0 / std::max(state.period, decltype(state.period)(1e-6));
           // filter out any pixels that have not been updated recently
@@ -215,34 +213,19 @@ private:
     return (rawImg);
   }
 
-  cv::Mat makeFrequencyAndEventImage(cv::Mat * eventImage) const;
-
   static inline uint32_t shorten_time(uint64_t t)
   {
     return (static_cast<uint32_t>((t / 1000) & 0xFFFFFFFF));
   }
 
   // ------ variables ----
-  rclcpp::Time lastTime_{0};
-  bool useSensorTime_;
-  image_transport::Publisher imagePub_;
-  rclcpp::Subscription<EventArray>::SharedPtr eventSub_;
-  rclcpp::TimerBase::SharedPtr pubTimer_;
-  rclcpp::TimerBase::SharedPtr statsTimer_;
-
   State * state_{0};
   double freq_[2]{-1.0, -1.0};  // frequency range
   double tfFreq_[2]{0, 1.0};    // transformed frequency range
-  uint32_t width_;              // image width
-  uint32_t height_;             // image height
+  uint32_t width_{0};           // image width
+  uint32_t height_{0};          // image height
   uint64_t eventCount_{0};
-  uint64_t msgCount_{0};
-  uint64_t lastCount_{0};
-  uint64_t totTime_{0};
   uint32_t lastEventTime_;
-  int64_t lastSeq_{0};
-  int64_t droppedSeq_{0};
-  std_msgs::msg::Header header_;
   // ---------- variables for state update
   variable_t c_[2];
   variable_t c_p_{0};
@@ -250,18 +233,10 @@ private:
   variable_t dtMax_{1.0};
   variable_t dtMinHalf_{0};
   variable_t dtMaxHalf_{0.5};
-  // ---------- visualization
-  bool useLogFrequency_{false};                   // visualize log10(frequency)
-  int legendWidth_{0};                            // width of legend in pixels
-  std::vector<double> legendValues_;              // frequency values for which to show legend
-  size_t legendBins_;                             // # of bins if legend values are not given
-  cv::ColormapTypes colorMap_{cv::COLORMAP_JET};  // colormap for freq
-  double eventImageDt_{0};                        // time slice for event visualization
-  float timeoutCycles_{2.0};                      // how many silent cycles until freq is invalid
-  bool overlayEvents_{false};
-  event_array_codecs::DecoderFactory<FrequencyCam> decoderFactory_;
+  variable_t timeoutCycles_{2.0};  // how many silent cycles until freq is invalid
   //
   // ------------------ debugging stuff
+  std::ofstream debug_;
   uint16_t debugX_{0};
   uint16_t debugY_{0};
   uint64_t timeOffset_{0};

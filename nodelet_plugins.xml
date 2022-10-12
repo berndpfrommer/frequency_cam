@@ -1,0 +1,9 @@
+<library path="lib/libfrequency_cam_nodelet">
+  <class name="frequency_cam/FrequencyCamNodelet"
+         type="frequency_cam::FrequencyCamNodelet"
+         base_class_type="nodelet::Nodelet">
+    <description>
+      frequency cam nodelet
+    </description>
+  </class>
+</library>

@@ -28,6 +28,7 @@
   <depend>event_array_codecs</depend>  
   <depend>image_transport</depend>
   <depend>cv_bridge</depend>
+  <depend>std_msgs</depend>
 
   <export>
     <nodelet plugin="${prefix}/nodelet_plugins.xml"/>

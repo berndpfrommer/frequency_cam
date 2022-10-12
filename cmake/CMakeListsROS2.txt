@@ -32,7 +32,8 @@ set(ROS2_DEPENDENCIES
   "event_array_codecs"
   "image_transport"
   "cv_bridge"
-)
+  "std_msgs"
+  )
 
 foreach(pkg ${ROS2_DEPENDENCIES})
   find_package(${pkg} REQUIRED)
