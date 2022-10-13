@@ -25,7 +25,7 @@ namespace frequency_cam
 class ImageMaker
 {
 public:
-  ImageMaker(){};
+  ImageMaker() {}
   ImageMaker(const ImageMaker &) = delete;
   ImageMaker & operator=(const ImageMaker &) = delete;
 
@@ -51,9 +51,9 @@ private:
   int legendWidth_{0};
   std::vector<double> legendValues_;
   size_t legendNumBins_{6};
-  double freq_[2]{-1.0, -1.0};                              // frequency range
-  double tfFreq_[2]{0, 1.0};                                // transformed frequency range
-  constexpr static cv::ColormapTypes colorMap_{cv::COLORMAP_JET};  // colormap for freq
+  double freq_[2]{-1.0, -1.0};  // frequency range
+  double tfFreq_[2]{0, 1.0};    // transformed frequency range
+  constexpr static cv::ColormapTypes colorMap_{cv::COLORMAP_JET};
   //
   // ------------------ debugging stuff
   uint16_t debugX_{0};

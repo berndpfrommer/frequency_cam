@@ -29,14 +29,18 @@ namespace frequency_cam
 {
 // round and format taken from here:
 // https://stackoverflow.com/questions/17211122/formatting-n-significant-digits-in-c-without-scientific-notation
-int round(double number) { return (number >= 0) ? (int)(number + 0.5) : (int)(number - 0.5); }
+int round(double number)
+{
+  return (number >= 0) ? static_cast<int>(number + 0.5) : static_cast<int>(number - 0.5);
+}
 
 std::string format(double f, int w, int n)
 {
   if (f == 0) {
     return "0";
   }
-  int d = (int)::ceil(::log10(f < 0 ? -f : f)); /*digits before decimal point*/
+  /*digits before decimal point*/
+  int d = static_cast<int>(::ceil(::log10(f < 0 ? -f : f)));
   double order = ::pow(10., n - d);
   std::stringstream ss;
   ss << std::fixed << std::setw(w) << std::setprecision(std::max(n - d, 0))
@@ -60,7 +64,6 @@ static void compute_max(const cv::Mat & img, double * maxVal)
     cv::Point minLoc, maxLoc;
     double minVal;
     cv::minMaxLoc(img, &minVal, maxVal, &minLoc, &maxLoc);
-    std::cout << "minval: " << minVal << " maxval: " << *maxVal << std::endl;
   }
 }
 
@@ -69,10 +72,9 @@ static void compute_max(const cv::Mat & img, double * maxVal)
  */
 static std::string format_freq(double v)
 {
-#if 0  
+#if 0
   std::stringstream ss;
-  //ss << " " << std::fixed << std::setw(7) << std::setprecision(1) << v;
-  ss << " " << std::setw(6) << (int)v;
+  ss << " " << std::setw(6) << static_cast<int>(v);
   return (ss.str());
 #else
   return (format(v, 6, 3));

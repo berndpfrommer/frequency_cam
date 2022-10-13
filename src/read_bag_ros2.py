@@ -15,10 +15,10 @@
 # limitations under the License.
 #
 #
-"""
-reads ROS2 bag with event_array messages into array of metavision SDK events
-https://github.com/ros2/rosbag2/blob/master/rosbag2_py/test/test_sequential_reader.py
-"""
+"""Read ROS2 bag with event_array messages into array of metavision SDK events."""
+
+# See also::
+# https://github.com/ros2/rosbag2/blob/master/rosbag2_py/test/test_sequential_reader.py
 
 import time
 import rclpy.time
@@ -70,7 +70,7 @@ class ArrayConverter():
              + time_base).astype(np.int64) // 1000
         p = np.right_shift(packed, 63).astype(np.int16)
         return width, height, (x, y, p, t)
-        
+
 
 class EventCDConverter():
     def convert(self, msg, time_base):
@@ -91,7 +91,7 @@ class EventCDConverter():
 
     def offset(self, time_base):
         return ((time_base // 1000) & ~0xFFFFFFFFFFF)
-        
+
 
 def read_bag(bag_path, topic, use_sensor_time=False, converter=EventCDConverter()):
     reader, type_map = make_reader(bag_path, topic)
@@ -100,9 +100,9 @@ def read_bag(bag_path, topic, use_sensor_time=False, converter=EventCDConverter(
     num_msgs = 0
 
     events = []
-    prev_t = 0
-    prev_tb = 0
-    prev_dec = 0
+#     prev_t = 0
+#     prev_tb = 0
+#    prev_dec = 0
     offset = 0
     while reader.has_next():
         (topic, data, t_rec) = reader.read_next()
@@ -116,15 +116,15 @@ def read_bag(bag_path, topic, use_sensor_time=False, converter=EventCDConverter(
 #              rclpy.time.Time().from_msg(msg.header.stamp).nanoseconds, ' diff: ',
 #              rclpy.time.Time().from_msg(msg.header.stamp).nanoseconds - prev_t,
 #              msg.time_base - prev_tb, evs['t'][0] - prev_dec)
-        prev_t = rclpy.time.Time().from_msg(msg.header.stamp).nanoseconds
-        prev_tb = msg.time_base
-        prev_dec = evs['t'][0]
+#        prev_t = rclpy.time.Time().from_msg(msg.header.stamp).nanoseconds
+#        prev_tb = msg.time_base
+#        prev_dec = evs['t'][0]
         events.append(evs)
         num_events += evs.shape[0]
         num_msgs += 1
-    
+
     dt = time.time() - start_time
-    print(f'took {dt:2f}s to process {num_msgs}, rate: {num_msgs / dt} ' + \
+    print(f'took {dt:2f}s to process {num_msgs}, rate: {num_msgs / dt} ' +
           f'msgs/s, {num_events * 1e-6 / dt} Mev/s')
     return events, (width, height), offset
 

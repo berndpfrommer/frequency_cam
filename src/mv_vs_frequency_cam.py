@@ -15,9 +15,7 @@
 # limitations under the License.
 #
 #
-"""
-compare frequency image between metavision SDK and frequency camera
-"""
+"""Compare frequency image between metavision SDK and frequency camera."""
 
 import cv2
 import numpy as np
@@ -44,7 +42,7 @@ offset = None
 
 
 def make_bg_image(events, res):
-    """make_bg_image():  make background image based on events"""
+    """Make grey pixel background image based on events."""
     img = 255 * np.ones([res[1], res[0], 3], dtype=np.uint8)
 
     for evts in events:
@@ -168,7 +166,7 @@ def mv_write_image_cb(ts, freq_map_orig):
 
     # write fc image into full frame
     img[0:res[1], :] = make_fc_image(fc_freq_map, use_log_scale, bg_img)
-    
+
     nz_idx = freq_map > 0  # indices of non-zero elements of frequency map
     fname = str(Path(args.mv_output_dir) / f"frame_{frame_count:05d}.jpg")
 
@@ -183,7 +181,7 @@ def mv_write_image_cb(ts, freq_map_orig):
     else:
         print('writing empty image: ', fname)
         cv2.imwrite(fname, np.zeros_like(freq_map, dtype=np.uint8))
-        
+
     last_events = []  # clear out all events
     frame_count += 1
 

@@ -106,8 +106,8 @@ void FrequencyCam::resetStatistics() { eventCount_ = 0; }
 
 std::ostream & operator<<(std::ostream & os, const FrequencyCam::Event & e)
 {
-  os << std::fixed << std::setw(10) << std::setprecision(6) << e.t * 1e-6 << " " << (int)e.polarity
-     << " " << e.x << " " << e.y;
+  os << std::fixed << std::setw(10) << std::setprecision(6) << e.t * 1e-6 << " "
+     << static_cast<int>(e.polarity) << " " << e.x << " " << e.y;
   return (os);
 }
 

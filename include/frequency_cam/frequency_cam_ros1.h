@@ -33,7 +33,7 @@ class FrequencyCamROS
 public:
   using EventArray = event_array_msgs::EventArray;
 
-  FrequencyCamROS(const ros::NodeHandle & nh);
+  explicit FrequencyCamROS(const ros::NodeHandle & nh);
   FrequencyCamROS(const FrequencyCamROS &) = delete;
   FrequencyCamROS & operator=(const FrequencyCamROS &) = delete;
 

@@ -15,9 +15,7 @@
 # limitations under the License.
 #
 #
-"""
-frequency camera algorithm
-"""
+"""Python implementation of the Frequency Cam filter algorithm."""
 
 import numpy as np
 import math
@@ -102,12 +100,12 @@ class FrequencyCam():
         self._state['period'] = -1
         self._state['p'] = -1  # should set to zero?
         self._last_event_time = t
-        
+
     def set_output_callback(self, cb):
         self._callback = cb
 
     def update_state_filter(self, events):
-        """updating state with loop (slow)"""
+        """Update state with slow loop."""
         if self._state is None:
             self.initialize_state(events['t'][0])
         self._processed_events += events.shape[0]
@@ -119,13 +117,13 @@ class FrequencyCam():
             L_km1 = self._state['L'][y, x]
             L_km2 = self._state['L_lag'][y, x]
             dp = p - self._state['p'][y, x]
-            L_k = self._c[0] * L_km1 + self._c[1] * L_km2 + self._c[2] * dp 
+            L_k = self._c[0] * L_km1 + self._c[1] * L_km2 + self._c[2] * dp
 
             if L_k < 0 and L_km1 > 0:
                 # ---------------------------------------------
                 # signal crosses the zero line from above
                 dt_ud = (t - self._state['t_flip_up_down'][y, x]) * 1.0e-6
-                if dt_ud >= self._dt_min  and dt_ud <= self._dt_max:
+                if dt_ud >= self._dt_min and dt_ud <= self._dt_max:
                     # period is within valid range, use it
                     self._state['period'][y, x] = dt_ud
                 else:
@@ -133,7 +131,7 @@ class FrequencyCam():
                     if self._state['period'][y, x] > 0:
                         to = self._state['period'][y, x] * self._timeout_cycles
                         if dt_ud > to and dt_du > 0.5 * to:
-                            self._state['period'][y, x] = 0 # stale pixel
+                            self._state['period'][y, x] = 0  # stale pixel
                         elif (dt_du >= 0.5 * self._dt_min) and \
                              (dt_du <= 0.5 * self._dt_max):
                             # don't have a valid period, init from half cycle
@@ -145,7 +143,7 @@ class FrequencyCam():
                 # signal crosses the zero line from below
                 dt_du = (t - self._state['t_flip_down_up'][y, x]) * 1.0e-6
                 if self._state['period'][y, x] <= 0 and \
-                   dt_du >= self._dt_min  and dt_du <= self._dt_max:
+                   dt_du >= self._dt_min and dt_du <= self._dt_max:
                     # period is within valid range and no period available yet
                     self._state['period'][y, x] = dt_du
                 else:
@@ -155,7 +153,7 @@ class FrequencyCam():
                         # have valid period, may have to time it out
                         to = self._state['period'][y, x] * self._timeout_cycles
                         if dt_du > to and dt_ud > 0.5 * to:
-                            self._state['period'][y, x] = 0 # stale pixel
+                            self._state['period'][y, x] = 0  # stale pixel
                     elif (dt_ud >= 0.5 * self._dt_min) and \
                          (dt_ud <= 0.5 * self._dt_max):
                         # have invalid period, initialize from half-cycle
@@ -167,7 +165,7 @@ class FrequencyCam():
                 dt = (t - max(self._state['t_flip_up_down'][y, x],
                               self._state['t_flip_down_up'][y, x])) * 1e-6
                 self._debug.write(f"{t + self.time_offset} {dp} {L_k}"
-                                  + f" {L_km1} {L_km2} {dt}" 
+                                  + f" {L_km1} {L_km2} {dt}"
                                   + f" {self._state['period'][y, x]}"
                                   + f" {self._dt_min} {self._dt_max}\n")
                 self._debug.flush()
@@ -195,10 +193,10 @@ class FrequencyCam():
                               & (dt < period * self._timeout_cycles)
                               & (dt < self._dt_max * self._timeout_cycles)))
 
-            
         if self._debug_x != -1 and self._debug_y != -1:
             self._readout.write(
-                f'{(t_now  + self.time_offset) * 1e-6} {fm[self._debug_y, self._debug_x]}\n')
+                f'{(t_now  + self.time_offset) * 1e-6} ' +
+                f'{fm[self._debug_y, self._debug_x]}\n')
             self._readout.flush()
         return fm
 
@@ -216,7 +214,7 @@ class FrequencyCam():
             self.process_events_with_timestamps(events)
         else:
             self.process_events_to_frames(events)
-            
+
     def process_events_with_timestamps(self, events):
         if self._frame_number >= self._timestamps.shape[0]:
             return  # already processed all frames
@@ -227,7 +225,7 @@ class FrequencyCam():
             # into the next one, simply update the state and store the events
             self.update_state(events)
         else:
-            # need to split 
+            # need to split
             event_list = []
             for e in events:
                 while (self._frame_number < self._timestamps.shape[0] and
@@ -252,20 +250,20 @@ class FrequencyCam():
     def process_events_no_callback(self, events, time_offset):
         self.time_offset = time_offset
         self.update_state(events)
-        
+
     def process_events_to_frames(self, events):
         # handle case of first event received
         if self._current_frame_end_time is None:
             self._current_frame_end_time = events[0]['t'] \
                 + self._frame_timeslice
-   
+
         if events[-1]['t'] < self._current_frame_end_time:
             # in the not unusual case where all events in this call
             # belong to the current frame and there is no cross-over
             # into the next one, simply update the state and store the events
             self.update_state(events)
         else:
-            # need to split 
+            # need to split
             event_list = []
             for e in events:
                 while e['t'] > self._current_frame_end_time:

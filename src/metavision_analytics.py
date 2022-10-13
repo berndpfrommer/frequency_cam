@@ -15,9 +15,7 @@
 # limitations under the License.
 #
 #
-"""
-compute frequency image using the metavision SDK's analytics
-"""
+"""Compute frequency image using the metavision SDK's analytics."""
 
 import cv2
 import numpy as np
@@ -38,7 +36,7 @@ use_log_scale = False
 
 
 def make_bg_image(img, events):
-    """make_bg_image():  make background image based on events"""
+    """Make background image of events."""
     for evts in events:
         x = evts[:]['x']
         y = evts[:]['y']
@@ -73,7 +71,7 @@ def write_image_cb(ts, freq_map):
     else:
         print('writing empty image: ', fname)
         cv2.imwrite(fname, np.zeros_like(freq_map, dtype=np.uint8))
-        
+
     frame_time_stamps.append((t_curr * 1000, frame_count))
     frame_count += 1
 
@@ -136,5 +134,3 @@ if __name__ == '__main__':
 
     np.savetxt(args.timestamp_file, np.array(frame_time_stamps).astype(np.uint64),
                fmt='%d')
-
-    

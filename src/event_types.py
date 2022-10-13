@@ -15,9 +15,8 @@
 # limitations under the License.
 #
 #
-"""
-defines event type primites (compatible with metavision event types)
-"""
+"""Define event type primites (compatible with metavision event types)."""
+
 import numpy as np
 
 EventCD = np.dtype({'names': ['x', 'y', 'p', 't'],

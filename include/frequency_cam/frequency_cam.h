@@ -30,7 +30,7 @@ namespace frequency_cam
 class FrequencyCam : public event_array_codecs::EventProcessor
 {
 public:
-  FrequencyCam(){};
+  FrequencyCam() {}
   ~FrequencyCam();
 
   FrequencyCam(const FrequencyCam &) = delete;
@@ -44,9 +44,9 @@ public:
     lastEventTime_ = e.t;
     eventCount_++;
   }
-  virtual void eventExtTrigger(uint64_t, uint8_t, uint8_t) override {}
-  virtual void finished() override {}
-  virtual void rawData(const char *, size_t) override {}
+  void eventExtTrigger(uint64_t, uint8_t, uint8_t) override {}
+  void finished() override {}
+  void rawData(const char *, size_t) override {}
   // ------------- end of inherited from EventProcessor
 
   bool initialize(
@@ -65,7 +65,7 @@ public:
 private:
   struct Event  // event representation for convenience
   {
-    Event(uint32_t ta = 0, uint16_t xa = 0, uint16_t ya = 0, int8_t p = 0)
+    explicit Event(uint32_t ta = 0, uint16_t xa = 0, uint16_t ya = 0, int8_t p = 0)
     : t(ta), x(xa), y(ya), polarity(p)
     {
     }
@@ -182,7 +182,7 @@ private:
 
   struct NoEventFrameUpdater
   {
-    static void update(cv::Mat *, int, int, double, double){};
+    static void update(cv::Mat *, int, int, double, double) {}
   };
 
   template <class T, class U>

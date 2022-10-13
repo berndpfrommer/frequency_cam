@@ -23,7 +23,7 @@ from launch.actions import OpaqueFunction
 
 
 def launch_setup(context, *args, **kwargs):
-    """function to set up launch."""
+    """Set up launch configuration."""
     image_topic_config = LaunchConfig('image_topic')
     event_topic_config = LaunchConfig('event_topic')
     image_topic = image_topic_config.perform(context)
@@ -39,7 +39,7 @@ def launch_setup(context, *args, **kwargs):
             {'use_sim_time': False,
              'min_frequency': 220.0,
              'max_frequency': 300.0,
-             'cutoff_period': 5.0, # prefilter cutoff period #events
+             'cutoff_period': 5.0,  # prefilter cutoff period #events
              'debug_x': 319,
              'debug_y': 239,
              'use_log_frequency': False,
