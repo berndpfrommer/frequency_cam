@@ -249,8 +249,8 @@ if __name__ == '__main__':
     use_log_scale = args.log_scale
     labels = args.labels
 
-    events, res, offset = read_bag(args.bag, args.topic, use_sensor_time=False,
-                                   converter=EventCDConverter())
+    events, res, offset, _, _ = read_bag(args.bag, args.topic, use_sensor_time=False,
+                                         converter=EventCDConverter())
 
     Path(args.mv_output_dir).mkdir(parents=True, exist_ok=True)
 
