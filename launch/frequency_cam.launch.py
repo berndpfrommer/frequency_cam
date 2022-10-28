@@ -34,6 +34,7 @@ def launch_setup(context, *args, **kwargs):
         output='screen',
         # prefix=['valgrind --tool=callgrind --dump-instr=yes
         #  --simulate-cache=yes --collect-jumps=yes'],
+        # prefix=['xterm -e gdb -ex run --args'],
         name='frequency_cam',
         parameters=[
             {'use_sim_time': False,
