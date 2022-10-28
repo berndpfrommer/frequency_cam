@@ -131,6 +131,22 @@ def scale_img(img, s):
     return cv2.resize(img, dsize=(int(s*img.shape[1]),  int(s*img.shape[0])))
 
 
+def find_events_in_slice(ts, events):
+    sl = []
+    remainder = []
+    for evs in events:
+        t = evs['t']
+        if t[-1] < ts:
+            sl.append(evs)
+        else:
+            if t[0] >= ts:
+                remainder.append(evs)
+            else:
+                sl.append(evs[t < ts].copy())
+                remainder.append(evs[t >= ts].copy())
+    return remainder, sl
+
+
 def mv_write_image_cb(ts, freq_map_orig):
     global last_events
     global last_time
@@ -152,16 +168,17 @@ def mv_write_image_cb(ts, freq_map_orig):
         img[res[1]:(res[1] + legend_height), :] = legend
     # feed accumulated events into frequency cam algo
     get_fc_image = True
+    remainder, events_this_slice = find_events_in_slice(ts, last_events)
     if get_fc_image:
-        for evs in last_events:
+        for evs in events_this_slice:
             fc_algo.process_events_no_callback(evs, offset)
     # pull resultant frequency map
-    last_time = last_time if len(last_events) == 0 \
-        else last_events[-1]['t'][-1]
+    last_time = last_time if len(events_this_slice) == 0 \
+        else events_this_slice[-1]['t'][-1]
     fc_raw_freq_map = fc_algo.make_frequency_map(last_time)
     fc_freq_map = scale_img(crop_map(fc_raw_freq_map), scale)
 
-    raw_bg_img = make_bg_image(last_events, orig_res)
+    raw_bg_img = make_bg_image(events_this_slice, orig_res)
     bg_img = scale_img(crop_map(raw_bg_img), scale)
 
     # write fc image into full frame
@@ -170,7 +187,7 @@ def mv_write_image_cb(ts, freq_map_orig):
     nz_idx = freq_map > 0  # indices of non-zero elements of frequency map
     fname = str(Path(args.mv_output_dir) / f"frame_{frame_count:05d}.jpg")
 
-    if nz_idx.sum() > 0:
+    if nz_idx.sum() > 0 or np.count_nonzero(raw_bg_img) > 0:
         img_scaled = make_color_image(freq_map, freq_range, use_log_scale)
         bg_img[nz_idx, :] = img_scaled[nz_idx, :]  # paint over bg image
         # lower half is metavision image
@@ -182,7 +199,7 @@ def mv_write_image_cb(ts, freq_map_orig):
         print('writing empty image: ', fname)
         cv2.imwrite(fname, np.zeros_like(freq_map, dtype=np.uint8))
 
-    last_events = []  # clear out all events
+    last_events = remainder  # remove consumed events
     frame_count += 1
 
 
@@ -284,3 +301,4 @@ if __name__ == '__main__':
             # that a few events are included that are later than
             # that time stamp
             mv_algo.process_events(evs)
+
