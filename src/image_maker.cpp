@@ -169,7 +169,6 @@ cv::Mat ImageMaker::make(uint64_t t, const cv::Mat & rawImg, const cv::Mat & eve
     if (maxVal < tfFreq_[0]) {
       maxVal = tfFreq_[0] * 10;
     }
-    std::cout << "max: " << maxVal << std::endl;
   }
   const double range = maxVal - minVal;
   cv::convertScaleAbs(rawImg, scaled, 255.0 / range, -minVal * 255.0 / range);
