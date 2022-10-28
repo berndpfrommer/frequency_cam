@@ -88,7 +88,7 @@ void FrequencyCamROS::eventMsg(const EventArray::ConstPtr & msg)
   if (msg->events.empty()) {
     return;
   }
-  auto decoder = decoderFactory_.getInstance(msg->encoding);
+  auto decoder = decoderFactory_.getInstance(msg->encoding, msg->width, msg->height);
   if (!decoder) {
     ROS_INFO_STREAM("invalid encoding: " << msg->encoding);
     return;
@@ -143,6 +143,7 @@ void FrequencyCamROS::statisticsTimerExpired(const ros::TimerEvent &)
     cam_.resetStatistics();
     totTime_ = 0;
     msgCount_ = 0;
+    droppedSeq_ = 0;
   } else {
     ROS_INFO("no events received");
   }

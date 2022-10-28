@@ -150,7 +150,7 @@ void FrequencyCamROS::eventMsg(EventArray::ConstSharedPtr msg)
   if (msg->events.empty()) {
     return;
   }
-  auto decoder = decoderFactory_.getInstance(msg->encoding);
+  auto decoder = decoderFactory_.getInstance(msg->encoding, msg->width, msg->height);
   if (!decoder) {
     RCLCPP_INFO_STREAM(get_logger(), "invalid encoding: " << msg->encoding);
     return;
@@ -202,6 +202,7 @@ void FrequencyCamROS::statisticsTimerExpired()
     cam_.resetStatistics();
     totTime_ = 0;
     msgCount_ = 0;
+    droppedSeq_ = 0;
   } else {
     RCLCPP_INFO(get_logger(), "no events received");
   }
