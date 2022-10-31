@@ -143,11 +143,13 @@ def read_bag(bag_path, topic, use_sensor_time=False,
 
 
 def read_as_list(fname, topic, use_sensor_time=True, skip=0, max_read=None):
-    """read_as_list():
-    returns tuple with:
-    - 2d list (in row major order) of lists with timestamps
-      and polarities as tuples
-    - sensor resolution
+    """
+    Read events as a list.
+
+    Returns tuple with:
+     - 2d list (in row major order) of lists with timestamps
+          and polarities as tuples
+        - sensor resolution
     """
     print('reading bag: ', fname)
     print('topic: ', topic)
@@ -180,7 +182,7 @@ def read_as_list(fname, topic, use_sensor_time=True, skip=0, max_read=None):
         event_count[1] += num_on
         for i in range(t.shape[0]):
             data[idx[i]].append((t[i], p[i]))
-            
+
         if cnt > max_read:
             break
     t1 = time.time()
@@ -194,7 +196,9 @@ def read_as_list(fname, topic, use_sensor_time=True, skip=0, max_read=None):
 
 def read_as_array(bag_path, topic, use_sensor_time=True,
                   skip=0, max_read=None):
-    """read_as_array():
+    """
+    Read events as an array.
+
     returns tuple with:
     - 2d list (in row major order) of numpy arrays with timestamps
       and polarities as columns

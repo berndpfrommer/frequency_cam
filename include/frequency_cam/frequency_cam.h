@@ -23,7 +23,7 @@
 #include <iostream>
 #include <opencv2/core/core.hpp>
 
-//#define DEBUG
+// #define DEBUG
 
 namespace frequency_cam
 {

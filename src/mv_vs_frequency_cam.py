@@ -295,4 +295,3 @@ if __name__ == '__main__':
             # that a few events are included that are later than
             # that time stamp
             mv_algo.process_events(evs)
-

@@ -52,7 +52,6 @@ bool FrequencyCamROS::initialize()
   useLogFrequency_ = declare_parameter<bool>("use_log_frequency", false);
   imageMaker_.setUseLogFrequency(useLogFrequency_);
   overlayEvents_ = declare_parameter<bool>("overlay_events", false);
-  std::cout << "overlaying events: " << (int)overlayEvents_ << std::endl;
   imageMaker_.setOverlayEvents(overlayEvents_);
 
   rmw_qos_profile_t qosProf = rmw_qos_profile_default;

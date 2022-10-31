@@ -129,7 +129,8 @@ void ImageMaker::addLegend(cv::Mat * window, const double minVal, const double m
   if (scale_ != 1.0) {
     cv::resize(*window, *window, cv::Size(), scale_, scale_);
   }
-  const int x_off = window->cols - int(legendWidth_ * scale_);  // left border of legend
+  const int x_off =
+    window->cols - static_cast<int>(legendWidth_ * scale_);  // left border of legend
   const double range = maxVal - minVal;
   std::vector<std::string> text;
   std::vector<float> values = findLegendValuesAndText(minVal, maxVal, &text);
