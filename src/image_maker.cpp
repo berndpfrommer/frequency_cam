@@ -82,9 +82,10 @@ static std::string format_freq(double v)
 }
 
 static void draw_labeled_rectangle(
-  cv::Mat * window, int x_off, int y_off, int height, const std::string & text,
+  cv::Mat * window, int x_off, int y_off, int height, const std::string & text, double scale,
   const cv::Vec3b & color)
 {
+  const double fontScale = scale * 1.0;
   const cv::Point tl(x_off, y_off);                      // top left
   const cv::Point br(window->cols - 1, y_off + height);  // bottom right
   cv::rectangle(*window, tl, br, color, -1 /* filled */, cv::LINE_8);
@@ -92,7 +93,7 @@ static void draw_labeled_rectangle(
   const cv::Point tp(x_off - 2, y_off + height / 2 - 2);
   const cv::Scalar textColor = CV_RGB(0, 0, 0);
   cv::putText(
-    *window, text, tp, cv::FONT_HERSHEY_PLAIN, 1.0, textColor, 2.0 /*thickness*/,
+    *window, text, tp, cv::FONT_HERSHEY_PLAIN, fontScale, textColor, 2.0 * scale /*thickness*/,
     cv::LINE_AA /* anti-alias */);
 }
 
@@ -125,7 +126,10 @@ std::vector<float> ImageMaker::findLegendValuesAndText(
 
 void ImageMaker::addLegend(cv::Mat * window, const double minVal, const double maxVal) const
 {
-  const int x_off = window->cols - legendWidth_;  // left border of legend
+  if (scale_ != 1.0) {
+    cv::resize(*window, *window, cv::Size(), scale_, scale_);
+  }
+  const int x_off = window->cols - int(legendWidth_ * scale_);  // left border of legend
   const double range = maxVal - minVal;
   std::vector<std::string> text;
   std::vector<float> values = findLegendValuesAndText(minVal, maxVal, &text);
@@ -143,7 +147,8 @@ void ImageMaker::addLegend(cv::Mat * window, const double minVal, const double m
     const int height = window->rows / values.size();  // integer division
     for (size_t i = 0; i < values.size(); i++) {
       const int y_off = static_cast<float>(i) / values.size() * window->rows;
-      draw_labeled_rectangle(window, x_off, y_off, height, text[i], colorCode.at<cv::Vec3b>(i, 0));
+      draw_labeled_rectangle(
+        window, x_off, y_off, height, text[i], scale_, colorCode.at<cv::Vec3b>(i, 0));
     }
   } else {
     // for some reason or the other no legend could be drawn

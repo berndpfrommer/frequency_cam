@@ -37,6 +37,7 @@ public:
   void setDebugY(uint16_t v) { debugY_ = v; }
   void setLegendValues(const std::vector<double> & vals) { legendValues_ = vals; }
   void setLegendNumBins(size_t numBins) { legendNumBins_ = numBins; }
+  void setScale(double s) { scale_ = s; }
   // returns complete window
   cv::Mat make(uint64_t t, const cv::Mat & rawImg, const cv::Mat & eventImg) const;
 
@@ -48,11 +49,12 @@ private:
   // ------ variables ----
   bool useLogFrequency_{false};
   bool overlayEvents_{false};
-  int legendWidth_{0};
-  std::vector<double> legendValues_;
-  size_t legendNumBins_{6};
-  double freq_[2]{-1.0, -1.0};  // frequency range
-  double tfFreq_[2]{0, 1.0};    // transformed frequency range
+  int legendWidth_{0};                // legend width (unscaled)
+  std::vector<double> legendValues_;  // explicit legend values
+  size_t legendNumBins_{6};           // how many bins to create if none given
+  double freq_[2]{-1.0, -1.0};        // frequency range
+  double tfFreq_[2]{0, 1.0};          // transformed frequency range
+  double scale_{1.0};                 // how much to scale resolution
   constexpr static cv::ColormapTypes colorMap_{cv::COLORMAP_JET};
   //
   // ------------------ debugging stuff
