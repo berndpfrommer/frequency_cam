@@ -105,7 +105,7 @@ void FrequencyCamROS::eventMsg(const EventArray::ConstPtr & msg)
     header_ = msg->header;  // copy frame id
     header_.seq = seq_;     // set ROS1 sequence to zero
     lastSeq_ = msg->seq - 1;
-    cam_.initializeState(width_, height_, t);
+    cam_.initializeState(width_, height_, t, ros::Time(header_.stamp).toNSec());
   }
   // decode will produce callbacks to cam_
   decoder->decode(&(msg->events[0]), msg->events.size(), &cam_);
