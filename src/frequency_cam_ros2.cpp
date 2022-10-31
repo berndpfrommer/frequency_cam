@@ -70,6 +70,7 @@ bool FrequencyCamROS::initialize()
   imageMaker_.setLegendValues(
     declare_parameter<std::vector<double>>("legend_frequencies", std::vector<double>()));
   imageMaker_.setLegendNumBins(declare_parameter<int>("legend_num_bins", 11));
+  imageMaker_.setNumSigDigits(declare_parameter<int>("legend_num_sig_digits", 3));
   cam_.initialize(
     minFreq, maxFreq, declare_parameter<double>("cutoff_period", 6.0),
     declare_parameter<int>("num_timeout_cycles", 2.0), debugX_, debugY_);

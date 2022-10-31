@@ -34,16 +34,17 @@ int round(double number)
   return (number >= 0) ? static_cast<int>(number + 0.5) : static_cast<int>(number - 0.5);
 }
 
-std::string format(double f, int w, int n)
+std::string format(double f, int w, int num_sig_digits)
 {
   if (f == 0) {
     return "0";
   }
   /*digits before decimal point*/
   int d = static_cast<int>(::ceil(::log10(f < 0 ? -f : f)));
-  double order = ::pow(10., n - d);
+  const int dd = num_sig_digits - d;
+  double order = ::pow(10., dd);
   std::stringstream ss;
-  ss << std::fixed << std::setw(w) << std::setprecision(std::max(n - d, 0))
+  ss << std::fixed << std::setw(w) << std::setprecision(std::max(dd, 0))
      << round(f * order) / order;
   return ss.str();
 }
@@ -70,14 +71,14 @@ static void compute_max(const cv::Mat & img, double * maxVal)
 /*
  * format frequency labels for opencv
  */
-static std::string format_freq(double v)
+static std::string format_freq(double v, int n_sig_dig)
 {
 #if 0
   std::stringstream ss;
-  ss << " " << std::setw(6) << static_cast<int>(v);
+  ss << " " << std::setw(6) << round(v);
   return (ss.str());
 #else
-  return (format(v, 6, 3));
+  return (format(v, 6, n_sig_dig));
 #endif
 }
 
@@ -112,13 +113,13 @@ std::vector<float> ImageMaker::findLegendValuesAndText(
       const double raw_v = minVal + (static_cast<float>(i) / (legendNumBins_ - 1)) * range;
       const double v = round_it ? std::round(raw_v) : raw_v;
       values.push_back(v);
-      text->push_back(format_freq(useLogFrequency_ ? std::pow(10.0, v) : v));
+      text->push_back(format_freq(useLogFrequency_ ? std::pow(10.0, v) : v, sigDigits_));
     }
   } else {
     // legend values are explicitly given
     for (const auto & lv : legendValues_) {
       values.push_back(useLogFrequency_ ? std::log10(lv) : lv);
-      text->push_back(format_freq(lv));
+      text->push_back(format_freq(lv, sigDigits_));
     }
   }
   return (values);

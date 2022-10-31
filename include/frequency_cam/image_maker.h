@@ -38,6 +38,7 @@ public:
   void setLegendValues(const std::vector<double> & vals) { legendValues_ = vals; }
   void setLegendNumBins(size_t numBins) { legendNumBins_ = numBins; }
   void setScale(double s) { scale_ = s; }
+  void setNumSigDigits(int n) { sigDigits_ = n; }
   // returns complete window
   cv::Mat make(uint64_t t, const cv::Mat & rawImg, const cv::Mat & eventImg) const;
 
@@ -55,6 +56,7 @@ private:
   double freq_[2]{-1.0, -1.0};        // frequency range
   double tfFreq_[2]{0, 1.0};          // transformed frequency range
   double scale_{1.0};                 // how much to scale resolution
+  int sigDigits_{3};                  // number of significant digits for legend
   constexpr static cv::ColormapTypes colorMap_{cv::COLORMAP_JET};
   //
   // ------------------ debugging stuff
