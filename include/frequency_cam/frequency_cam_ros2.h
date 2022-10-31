@@ -43,7 +43,7 @@ private:
   void statisticsTimerExpired();
   bool initialize();
   void eventMsg(const EventArray::ConstSharedPtr msg);
-  void playEventsFromBag(const std::string & bagName);
+  void playEventsFromBag(const std::string & bagName, const std::string & bagTopic);
   // ------ variables ----
   rclcpp::Time lastPubTime_{0};
   rclcpp::Subscription<EventArray>::SharedPtr eventSub_;

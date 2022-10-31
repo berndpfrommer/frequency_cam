@@ -37,16 +37,16 @@ def launch_setup(context, *args, **kwargs):
         # prefix=['xterm -e gdb -ex run --args'],
         name='frequency_cam',
         parameters=[
-            {'use_sim_time': False,
-             'min_frequency': 220.0,
-             'max_frequency': 300.0,
+            {'use_sim_time': LaunchConfig('use_sim_time'),
+             'min_frequency': 10.0,
+             'max_frequency': 5000.0,
              'cutoff_period': 5.0,  # prefilter cutoff period #events
-             'debug_x': 319,
-             'debug_y': 239,
+             'debug_x': 240,
+             'debug_y': 194,
              'use_log_frequency': False,
              'overlay_events': True,
              'bag_file': LaunchConfig('bag').perform(context),
-             'publishing_frequency': 20.0}],
+             'publishing_frequency': 25.0}],
         remappings=[
             ('~/events', event_topic),
             ('~/image', image_topic)
@@ -63,5 +63,7 @@ def generate_launch_description():
                   description='event topic'),
         LaunchArg('bag', default_value=[''],
                   description='name of bag file to read'),
+        LaunchArg('use_sim_time', default_value=['false'],
+                  description='whether to use simulation time'),
         OpaqueFunction(function=launch_setup)
         ])

@@ -39,7 +39,7 @@ public:
   // ------------- inherited from EventProcessor
   inline void eventCD(uint64_t sensor_time, uint16_t ex, uint16_t ey, uint8_t polarity) override
   {
-    Event e(shorten_time(sensor_time), ex, ey, polarity ? 1 : -1);
+    Event e(shorten_time(sensor_time), ex, ey, polarity);
     updateState(&state_[e.y * width_ + e.x], e);
     lastEventTime_ = e.t;
     eventCount_++;
@@ -53,7 +53,7 @@ public:
     double minFreq, double maxFreq, double cutoffPeriod, int timeoutCycles, uint16_t debugX,
     uint16_t debugY);
 
-  void initializeState(uint32_t width, uint32_t height, uint64_t t);
+  void initializeState(uint32_t width, uint32_t height, uint64_t t_first, uint64_t t_off);
 
   // returns frequency image
   cv::Mat makeFrequencyAndEventImage(
@@ -65,7 +65,7 @@ public:
 private:
   struct Event  // event representation for convenience
   {
-    explicit Event(uint32_t ta = 0, uint16_t xa = 0, uint16_t ya = 0, int8_t p = 0)
+    explicit Event(uint32_t ta = 0, uint16_t xa = 0, uint16_t ya = 0, bool p = false)
     : t(ta), x(xa), y(ya), polarity(p)
     {
     }
@@ -73,7 +73,7 @@ private:
     uint32_t t;
     uint16_t x;
     uint16_t y;
-    int8_t polarity;
+    bool polarity;
   };
   friend std::ostream & operator<<(std::ostream & os, const Event & e);
 
@@ -82,19 +82,26 @@ private:
   typedef uint32_t state_time_t;
   struct State
   {
+    inline bool polarity() const { return (last_t_pol & (1 << 31)); }
+    inline state_time_t lastTime() const { return (last_t_pol & ~(1 << 31)); }
+    inline void set_time_and_polarity(state_time_t t, bool p)
+    {
+      last_t_pol = (static_cast<uint8_t>(p) << 31) | (t & ~(1 << 31));
+    }
+    // ------ variables
     state_time_t t_flip_up_down;  // time of last flip
     state_time_t t_flip_down_up;  // time of last flip
     variable_t L_km1;             // brightness lagged once
     variable_t L_km2;             // brightness lagged twice
     variable_t period;            // estimated period
-    int8_t polarity;              // last polarity
+    state_time_t last_t_pol;      // last polarity and time
   };
 
   inline void updateState(State * state, const Event & e)
   {
     State & s = *state;
-    // raw change in polarity, will be 0 or +-2
-    const float dp = e.polarity - s.polarity;
+    // raw change in polarity, will be 0 or +-1
+    const float dp = e.polarity - s.polarity();
     // run the filter (see paper)
     const auto L_k = c_[0] * s.L_km1 + c_[1] * s.L_km2 + c_p_ * dp;
     if (L_k < 0 && s.L_km1 > 0) {
@@ -157,7 +164,7 @@ private:
 #endif
     s.L_km2 = s.L_km1;
     s.L_km1 = L_k;
-    s.polarity = e.polarity;
+    s.set_time_and_polarity(e.t, e.polarity);
   }
 
   struct NoTF
@@ -195,11 +202,12 @@ private:
       for (uint32_t ix = 0; ix < width_; ix++) {
         const size_t offset = iy * width_ + ix;
         const State & state = state_[offset];
-        // compute time since last flip up or down
-        const double dt =
-          (lastEventTime_ - std::max(state.t_flip_up_down, state.t_flip_down_up)) * 1e-6;
-        U::update(eventFrame, ix, iy, dt, eventImageDt);
+        // compute time since last touched
+        const double dtEvent = (lastEventTime_ - state.lastTime()) * 1e-6;
+        U::update(eventFrame, ix, iy, dtEvent, eventImageDt);
         if (state.period > 0) {
+          const double dt =
+            (lastEventTime_ - std::max(state.t_flip_up_down, state.t_flip_down_up)) * 1e-6;
           const double f = 1.0 / std::max(state.period, decltype(state.period)(1e-6));
           // filter out any pixels that have not been updated recently
           if (dt < maxDt * timeoutCycles_ && dt * f < timeoutCycles_) {

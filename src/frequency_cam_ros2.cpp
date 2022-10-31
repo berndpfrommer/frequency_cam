@@ -56,9 +56,6 @@ bool FrequencyCamROS::initialize()
 
   rmw_qos_profile_t qosProf = rmw_qos_profile_default;
   imagePub_ = image_transport::create_publisher(this, "~/image_raw", qosProf);
-  statsTimer_ = rclcpp::create_timer(
-    this, this->get_clock(), rclcpp::Duration::from_seconds(2.0),
-    [=]() { this->statisticsTimerExpired(); });
   debugX_ = static_cast<uint16_t>(declare_parameter<int>("debug_x", 320));
   debugY_ = static_cast<uint16_t>(declare_parameter<int>("debug_y", 240));
   imageMaker_.setDebugX(debugX_);
@@ -79,6 +76,10 @@ bool FrequencyCamROS::initialize()
 
   const std::string bag = this->declare_parameter<std::string>("bag_file", "");
   if (bag.empty()) {
+    // start statistics timer only when not playing from bag
+    statsTimer_ = rclcpp::create_timer(
+      this, this->get_clock(), rclcpp::Duration::from_seconds(2.0),
+      [=]() { this->statisticsTimerExpired(); });
     // for ROS2 frame timer and subscriber are initialized right away
     frameTimer_ = rclcpp::create_timer(
       this, this->get_clock(), rclcpp::Duration::from_seconds(eventImageDt_),
@@ -91,13 +92,14 @@ bool FrequencyCamROS::initialize()
       "~/events", qos, std::bind(&FrequencyCamROS::eventMsg, this, std::placeholders::_1));
   } else {
     // reading from bag is only for debugging
-    playEventsFromBag(bag);
+    playEventsFromBag(bag, declare_parameter<std::string>("bag_topic", "/event_camera/events"));
   }
   return (true);
 }
 
-void FrequencyCamROS::playEventsFromBag(const std::string & bagName)
+void FrequencyCamROS::playEventsFromBag(const std::string & bagName, const std::string & bagTopic)
 {
+  imageMaker_.setScale(this->declare_parameter<double>("scale_image", 1.0));
   rclcpp::Time lastFrameTime(0);
   rosbag2_cpp::Reader reader;
   reader.open(bagName);
@@ -111,6 +113,9 @@ void FrequencyCamROS::playEventsFromBag(const std::string & bagName)
   while (reader.has_next()) {
     auto bagmsg = reader.read_next();
     rclcpp::SerializedMessage serializedMsg(*bagmsg->serialized_data);
+    if (bagmsg->topic_name != bagTopic) {
+      continue;
+    }
     EventArray::SharedPtr msg(new EventArray());
     serialization.deserialize_message(&serializedMsg, &(*msg));
     if (msg) {
@@ -140,8 +145,8 @@ void FrequencyCamROS::playEventsFromBag(const std::string & bagName)
   // event count
   size_t numEvents;
   cam_.getStatistics(&numEvents);
-
   RCLCPP_INFO_STREAM(get_logger(), "played bag at rate: " << (numEvents / totTime_) << " Mev/s");
+  rclcpp::shutdown();
 }
 
 void FrequencyCamROS::eventMsg(EventArray::ConstSharedPtr msg)
@@ -166,7 +171,9 @@ void FrequencyCamROS::eventMsg(EventArray::ConstSharedPtr msg)
     width_ = msg->width;
     header_ = msg->header;  // copy frame id
     lastSeq_ = msg->seq - 1;
-    cam_.initializeState(width_, height_, t);
+    const uint64_t t_off =
+      (msg->encoding == "mono") ? t : (rclcpp::Time(msg->header.stamp).nanoseconds() - t);
+    cam_.initializeState(width_, height_, t, t_off);
   }
   // decode will produce callbacks to cam_
   decoder->decode(msg->events.data(), msg->events.size(), &cam_);

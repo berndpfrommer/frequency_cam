@@ -29,7 +29,6 @@ from read_bag_ros2 import read_bag, EventCDConverter
 
 args = None
 
-fc_output_dir = ""  # frequency cam output directory name
 last_events = []
 last_time = None
 
@@ -185,7 +184,7 @@ def mv_write_image_cb(ts, freq_map_orig):
     img[0:res[1], :] = make_fc_image(fc_freq_map, use_log_scale, bg_img)
 
     nz_idx = freq_map > 0  # indices of non-zero elements of frequency map
-    fname = str(Path(args.mv_output_dir) / f"frame_{frame_count:05d}.jpg")
+    fname = str(Path(args.output_dir) / f"frame_{frame_count:05d}.jpg")
 
     if nz_idx.sum() > 0 or np.count_nonzero(raw_bg_img) > 0:
         img_scaled = make_color_image(freq_map, freq_range, use_log_scale)
@@ -222,12 +221,9 @@ if __name__ == '__main__':
     parser.add_argument('--filter_length',
                         help='MV min num periods for valid detection',
                         default=1, type=int)
-    parser.add_argument('--mv_output_dir',
-                        help='name of metavision output directory',
-                        default='mv_frames')
-    parser.add_argument('--fc_output_dir',
-                        help='name of frequency cam output directory',
-                        default='fc_frames')
+    parser.add_argument('--output_dir',
+                        help='name of output directory',
+                        default='mv_fc_frames')
     parser.add_argument('--log_scale', action='store_true',
                         required=False, help='color frequency on log scale')
     parser.set_defaults(log_scale=False)
@@ -266,13 +262,11 @@ if __name__ == '__main__':
     use_log_scale = args.log_scale
     labels = args.labels
 
-    events, res, offset, _, _ = read_bag(args.bag, args.topic, use_sensor_time=False,
-                                         converter=EventCDConverter())
+    events, res, offset, _, _ = read_bag(
+        args.bag, args.topic, use_sensor_time=False,
+        converter=EventCDConverter())
 
-    Path(args.mv_output_dir).mkdir(parents=True, exist_ok=True)
-
-    fc_output_dir = args.fc_output_dir
-    Path(fc_output_dir).mkdir(parents=True, exist_ok=True)
+    Path(args.output_dir).mkdir(parents=True, exist_ok=True)
 
     mv_algo = FrequencyMapAsyncAlgorithm(
         width=res[0], height=res[1], filter_length=args.filter_length,
@@ -301,4 +295,3 @@ if __name__ == '__main__':
             # that a few events are included that are later than
             # that time stamp
             mv_algo.process_events(evs)
-

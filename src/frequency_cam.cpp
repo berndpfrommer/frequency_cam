@@ -63,11 +63,13 @@ bool FrequencyCam::initialize(
   return (true);
 }
 
-void FrequencyCam::initializeState(uint32_t width, uint32_t height, uint64_t t_full)
+void FrequencyCam::initializeState(uint32_t width, uint32_t height, uint64_t t_full, uint64_t t_off)
 {
   const uint32_t t = shorten_time(t_full) - 1;
 #ifdef DEBUG
-  timeOffset_ = (t_full / 1000) - shorten_time(t_full);  // safe high bits lost by shortening
+  timeOffset_ = (t_off / 1000) - shorten_time(t_off);  // safe high bits lost by shortening
+#else
+  (void)t_off;
 #endif
 
   width_ = width;
@@ -80,7 +82,7 @@ void FrequencyCam::initializeState(uint32_t width, uint32_t height, uint64_t t_f
     s.L_km1 = 0;
     s.L_km2 = 0;
     s.period = -1;
-    s.polarity = -1;  // should set this to zero?
+    s.set_time_and_polarity(t, 0);
   }
 }
 
