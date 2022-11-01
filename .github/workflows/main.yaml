@@ -25,7 +25,7 @@ jobs:
           path: src/$PACKAGE
           fetch-depth: 0
       - name: compile from source
-        run: ./src/$PACKAGE/.github/scripts/build_ros2.bash
+        run: ./src/$PACKAGE/.github/scripts/build_ros2.bash $PACKAGE
 
   build_focal_ros1:
     runs-on: ubuntu-20.04
@@ -39,7 +39,7 @@ jobs:
           path: src/$PACKAGE
           fetch-depth: 0
       - name: compile from source
-        run: ./src/$PACKAGE/.github/scripts/build_ros1.bash
+        run: ./src/$PACKAGE/.github/scripts/build_ros1.bash $PACKAGE
 
   build_jetson_bionic_noetic:
     runs-on: ubuntu-18.04
@@ -56,4 +56,4 @@ jobs:
           arch: jetson_r34
           distro: noetic_metavision
           run:  |
-            ./src/$PACKAGE/.github/scripts/build_ros1.bash
+            ./src/$PACKAGE/.github/scripts/build_ros1.bash $PACKAGE
