@@ -16,7 +16,7 @@ crossings. For more details please [refer to this
 paper](http://arxiv.org/foo.html).
 
 Here are a few videos of FrequencyCam in action:
-|[<img src="images/guitar.jpg" width="300" height="195"/>](https://youtu.be/5oMtnrrNHu4)|[<img src="images/quad_rotor.jpg" width="300" height="195"/>](https://youtu.be/1DOIe6SstFU)|[<img src="images/heli.jpg" width="300" height="195"/>](https://youtu.be/KNoVoXxyzcI)
+|[<img src="images/guitar.jpg" width="300" height="195"/>](https://youtu.be/5oMtnrrNHu4)|[<img src="images/quad_rotor.jpg" width="300" height="195"/>](https://youtu.be/1DOIe6SstFU)|[<img src="images/heli.jpg" width="300" height="195"/>](https://youtu.be/KNoVoXxyzcI)|
 
 ## Supported platforms
 
