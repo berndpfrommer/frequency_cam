@@ -58,8 +58,9 @@ bool FrequencyCamROS::initialize()
   imageMaker_.setLegendValues(
     nh_.param<std::vector<double>>("legend_frequencies", std::vector<double>()));
   imageMaker_.setLegendNumBins(nh_.param<int>("legend_num_bins", 11));
+  imageMaker_.setNumSigDigits(nh_.param<int>("legend_num_sig_digits", 3));
   cam_.initialize(
-    minFreq, maxFreq, nh_.param<double>("cutoff_period", 6.0),
+    minFreq, maxFreq, nh_.param<double>("cutoff_period", 5.0),
     nh_.param<int>("num_timeout_cycles", 2.0), debugX_, debugY_);
   return (true);
 }
@@ -145,7 +146,9 @@ void FrequencyCamROS::statisticsTimerExpired(const ros::TimerEvent &)
     msgCount_ = 0;
     droppedSeq_ = 0;
   } else {
-    ROS_INFO("no events received");
+    if (imagePub_.getNumSubscribers() != 0) {
+      ROS_INFO("no events received");
+    }
   }
 }
 

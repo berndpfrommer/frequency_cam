@@ -65,9 +65,10 @@ Input and algorithm related parameters:
 - ``min_frequency``: lower bound for detected frequency
 - ``max_frequency``: upper bound for detected frequency
 - ``cutoff_period``: number of events to use for the filter, see
-  paper. When in doubt set to 5 (default).
+  paper. When in doubt set to 5.0 (default).
 - ``num_timeout_cycles``: mark pixel inactive if it has not been
-  updated for a time of ``num_timeout_cycles`` times pixel period.
+  updated for a time of ``num_timeout_cycles`` times pixel period
+  (defaults to 2).
 - ``use_sim_time``: set this to true when playing from bag (and play
   bag with ``--clock 10000``)
 - ``bag_file``: only supported under ROS2: play from bag file and
@@ -83,12 +84,14 @@ Imaging related parameters:
   but no frequency could be found.
 - ``legend_num_bins``: how many color patches to show (defaults to 11)
 - ``legend_num_sig_digits``: how many significant digits to use for
-  legend
-- ``legend_frequencies``: explicitly specify color patches to show in
+  legend (defaults to 3).
+- ``legend_frequencies``: explicitly specify frequencies of color patches to show in
   the legend.
 - ``legend_width``: how many pixels wide the legend should be
+  (defaults to 100).
 - ``scale_image``: factor by how much to scale up the image in
-  resolution. Useful for getting nicer fonts for numbers when running
+  resolution. Only used when playing from bag under ROS2.
+  Useful for getting nicer fonts for numbers when running
   from bag for movie generation.
   
 ### Topics
