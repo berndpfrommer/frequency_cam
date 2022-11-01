@@ -22,10 +22,10 @@ jobs:
       - name: check out github repo
         uses: actions/checkout@v3
         with:
-          path: src/$PACKAGE
+          path: src/${{ env.PACKAGE }}
           fetch-depth: 0
       - name: compile from source
-        run: ./src/$PACKAGE/.github/scripts/build_ros2.bash $PACKAGE
+        run: ./src/${{ env.PACKAGE }}/.github/scripts/build_ros2.bash ${{ env.PACKAGE }}
 
   build_focal_ros1:
     runs-on: ubuntu-20.04
@@ -36,10 +36,10 @@ jobs:
       - name: check out github repo
         uses: actions/checkout@v3
         with:
-          path: src/$PACKAGE
+          path: src/${{ env.PACKAGE }}
           fetch-depth: 0
       - name: compile from source
-        run: ./src/$PACKAGE/.github/scripts/build_ros1.bash $PACKAGE
+        run: ./src/${{ env.PACKAGE }}/.github/scripts/build_ros1.bash ${{ env.PACKAGE }}
 
   build_jetson_bionic_noetic:
     runs-on: ubuntu-18.04
@@ -48,7 +48,7 @@ jobs:
       - uses: actions/checkout@v3
         name: check out github repo
         with:
-          path: src/$PACKAGE
+          path: src/${{ env.PACKAGE }}
           fetch-depth: 0
       - uses: berndpfrommer/run-on-arch-action@master
         name: compile from source
@@ -56,4 +56,4 @@ jobs:
           arch: jetson_r34
           distro: noetic_metavision
           run:  |
-            ./src/$PACKAGE/.github/scripts/build_ros1.bash $PACKAGE
+            ./src/${{ env.PACKAGE }}/.github/scripts/build_ros1.bash ${{ env.PACKAGE }}
