@@ -1,12 +1,28 @@
-# FrequencyCam: real-time frequency visualization with event based cameras
+# FrequencyCam: Imaging Periodic Signals in Real-Time 
+
+[![FrequencyCam guitar](images/guitar.jpg)](https://youtu.be/5oMtnrrNHu4)
 
 This repository has a ROS/ROS2 node for frequency analysis with event
-based cameras.
+based cameras. FrequencyCam colors pixels in an image with the
+frequency at which their brightness changes. The end result is a
+"frequency image" that is very similar to Prophesee's
+[Metavision Vibration Estimation module](https://docs.prophesee.ai/stable/metavision_sdk/modules/analytics/samples/vibration.html).
+
+In contrast to the Metavision module, FrequencyCam is open source under
+a permissive (Apache2 license) and is documented. It uses an IIR
+digital filter to approximately reconstruct the brightness of each
+pixel and then measures the time it takes between zero-level
+crossings. For more details please [refer to this
+paper](http://arxiv.org/foo.html).
+
+Here are a few videos of FrequencyCam in action:
+|guitar|quad rotor|heli|
+|------|----------|----|
+|[<img src="images/guitar.jpg" width="300" height="195"/>](https://youtu.be/5oMtnrrNHu4)|[<img src="images/quad_rotor.jpg" width="300" height="195"/>](https://youtu.be/1DOIe6SstFU)|[<img src="images/heli.jpg" width="300" height="195"/>](https://youtu.be/KNoVoXxyzcI)
 
 ## Supported platforms
 
 Currently tested on Ubuntu 20.04 under ROS2 Galactic.
-
 
 ## How to build
 Create a workspace (``~/ws``), clone this repo, and use ``wstool``
@@ -35,22 +51,44 @@ colcon build --symlink-install --cmake-args -DCMAKE_BUILD_TYPE=RelWithDebInfo  #
 ```
 ros2 launch frequency_cam frequency_cam.launch.py
 ```
+FrequencyCam expects ROS ``event_array_msgs`` messages from the
+[metavision ROS driver](https://github.com/berndpfrommer/metavision_ros_driver)
+here. You should be able to use other cameras (like DVS etc) by
+converting the messages with a ``republish`` nodelet from the
+[event array tools](https://github.com/berndpfrommer/event_array_tools)
+repository. 
 
 ### Parameters (see launch file):
 
-- ``use_sim_time``: set this to true when playing from bag (and play
-  bag with ``--clock``)
+Input and algorithm related parameters:
 - ``min_frequency``: lower bound for detected frequency
 - ``max_frequency``: upper bound for detected frequency
 - ``cutoff_period``: number of events to use for the filter, see
   paper. When in doubt set to 5 (default).
-- ``overlay_events``: mark as grey dots any events that happened
-  during this frame for which no frequency could be found.
+- ``num_timeout_cycles``: mark pixel inactive if it has not been
+  updated for a time of ``num_timeout_cycles`` times pixel period.
+- ``use_sim_time``: set this to true when playing from bag (and play
+  bag with ``--clock 10000``)
+- ``bag_file``: only supported under ROS2: play from bag file and
+  write generated frames to disk. If no bag file is given the node
+  subscibes to topics.
+
+Imaging related parameters:
+
 - ``publishing_frequency``: frequency (in Hz) at which frequency image is
   published (defaults to 20Hz)
-- ``bag_file``: only supported under ROS2: play from bag file and
-  write generated frames to disk. If no bag file is giving the node
-  subscibes to topics.
+- ``use_log_frequency``: use log scale for frequency image coloring
+- ``overlay_events``: mark pixels grey for which events have happened
+  but no frequency could be found.
+- ``legend_num_bins``: how many color patches to show (defaults to 11)
+- ``legend_num_sig_digits``: how many significant digits to use for
+  legend
+- ``legend_frequencies``: explicitly specify color patches to show in
+  the legend.
+- ``legend_width``: how many pixels wide the legend should be
+- ``scale_image``: factor by how much to scale up the image in
+  resolution. Useful for getting nicer fonts for numbers when running
+  from bag for movie generation.
   
 ### Topics
 
