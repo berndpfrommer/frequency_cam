@@ -12,8 +12,8 @@ In contrast to the Metavision module, FrequencyCam is open source under
 a permissive (Apache2 license) and is documented. It uses an IIR
 digital filter to approximately reconstruct the brightness of each
 pixel and then measures the time it takes between zero-level
-crossings. For more details please [refer to this
-paper](http://arxiv.org/foo.html).
+crossings. For more details please
+[refer to this paper](https://arxiv.org/abs/2211.00198).
 
 Here are a few videos of FrequencyCam in action:
 
