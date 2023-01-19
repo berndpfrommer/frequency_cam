@@ -195,6 +195,9 @@ private:
   template <class T, class U>
   cv::Mat makeTransformedFrequencyImage(cv::Mat * eventFrame, float eventImageDt) const
   {
+    std::vector<std::tuple<int,int>> freq_1;
+    int min_range = 1900;
+    int max_range = 2100;
     cv::Mat rawImg(height_, width_, CV_32FC1, 0.0);
     const double maxDt = 1.0 / freq_[0] * timeoutCycles_;
     const double minFreq = T::tf(freq_[0]);
@@ -211,13 +214,39 @@ private:
           const double f = 1.0 / std::max(state.period, decltype(state.period)(1e-6));
           // filter out any pixels that have not been updated recently
           if (dt < maxDt * timeoutCycles_ && dt * f < timeoutCycles_) {
-            rawImg.at<float>(iy, ix) = std::max(T::tf(f), minFreq);
+            auto frequency = std::max(T::tf(f), minFreq);
+            if (frequency > min_range && frequency < max_range) {
+              freq_1.emplace_back(ix, iy); 
+            }
+            rawImg.at<float>(iy, ix) = frequency;
           } else {
             rawImg.at<float>(iy, ix) = 0;  // mark as invalid
           }
         }
       }
     }
+
+    double mean_x = 0;
+    double mean_y = 0;
+    for (const auto& freq : freq_1) {
+      mean_x += std::get<0>(freq);
+      mean_y += std::get<1>(freq);
+    }
+    if (!freq_1.empty()) {
+      mean_x /= freq_1.size();
+      mean_y /= freq_1.size();
+
+      double variance_x = 0;
+      double variance_y = 0;
+      for (const auto& freq : freq_1) {
+        variance_x += (std::get<0>(freq) - mean_x) * 2;
+        variance_y += (std::get<1>(freq) - mean_y) * 2;
+      }
+
+      std::cout << "X: mean: " << mean_x << ", variance: " << variance_x << std::endl;
+      std::cout << "Y: mean: " << mean_y << ", variance: " << variance_y << std::endl;
+    }
+
     return (rawImg);
   }
 
