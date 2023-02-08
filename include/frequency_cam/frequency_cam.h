@@ -243,12 +243,10 @@ private:
       }
     }
 
-    std::vector<std::tuple<int, int>> filtered_points;
+    std::vector<std::tuple<int, int, int>> filtered_frequency_points;
+    std::vector<std::size_t> number_of_points;
     //for (const auto& [key, value] : points) {
     for (const auto & frequency_point : frequency_points) {
-      //   std::cout << '[' << key << "] = " << value << "; ";
-      std::cout << "point: " << frequency_point.first << std::endl;
-
       std::vector<std::size_t> assigned_indices;
       //for (const auto& point : frequency_point.second) {
       for (std::size_t i = 0; i < frequency_point.second.size(); ++i) {
@@ -289,7 +287,7 @@ private:
           mean_y /= y_values.size();
 
           bool insert = true;
-          for (const auto& point : filtered_points) {
+          for (const auto & point : filtered_frequency_points) {
             x = std::get<0>(point);
             y = std::get<1>(point);
 
@@ -299,7 +297,8 @@ private:
             }
           }
           if (insert) {
-            filtered_points.emplace_back(mean_x, mean_y);
+            filtered_frequency_points.emplace_back(mean_x, mean_y, frequency_point.first);
+            number_of_points.emplace_back(x_values.size());
           }
 
           assigned_indices.insert(
@@ -309,9 +308,13 @@ private:
     }
 
     std::cout << "Filtered points:" << std::endl;
-    for (const auto & filtered_point : filtered_points) {
-      std::cout << "x: " << std::get<0>(filtered_point) << ", y: " << std::get<1>(filtered_point)
-                << std::endl;
+    std::cout << "time stamp: " << lastEventTime_ << std::endl;
+    //for (const auto & filtered_point : filtered_points) {
+    for (std::size_t i = 0; i < filtered_frequency_points.size(); ++i) {
+      std::cout << "x: " << std::get<0>(filtered_frequency_points.at(i))
+                << ", y: " << std::get<1>(filtered_frequency_points.at(i))
+                << ", frequency: " << std::get<2>(filtered_frequency_points.at(i))
+                << ", number of points: " << number_of_points.at(i) << std::endl;
     }
 
     return (rawImg);
