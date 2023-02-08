@@ -21,12 +21,17 @@
 #include <cstdint>
 #include <fstream>
 #include <iostream>
+#include <map>
+#include <numeric>
 #include <opencv2/core/core.hpp>
 
 // #define DEBUG
 
 namespace frequency_cam
 {
+
+int roundUp(const int numToRound, const int multiple);
+
 class FrequencyCam : public event_array_codecs::EventProcessor
 {
 public:
@@ -195,9 +200,12 @@ private:
   template <class T, class U>
   cv::Mat makeTransformedFrequencyImage(cv::Mat * eventFrame, float eventImageDt) const
   {
-    std::vector<std::tuple<int,int>> freq_1;
-    int min_range = 1900;
-    int max_range = 2100;
+    std::vector<std::tuple<int, int, int>> freq_1;
+    std::map<double, std::vector<std::tuple<int, int>>> frequency_points;
+    const int min_range_1 = 2800;
+    const int max_range_1 = 3200;
+    const int min_range_2 = 3800;
+    const int max_range_2 = 4200;
     cv::Mat rawImg(height_, width_, CV_32FC1, 0.0);
     const double maxDt = 1.0 / freq_[0] * timeoutCycles_;
     const double minFreq = T::tf(freq_[0]);
@@ -215,8 +223,17 @@ private:
           // filter out any pixels that have not been updated recently
           if (dt < maxDt * timeoutCycles_ && dt * f < timeoutCycles_) {
             auto frequency = std::max(T::tf(f), minFreq);
-            if (frequency > min_range && frequency < max_range) {
-              freq_1.emplace_back(ix, iy); 
+            if (
+              (frequency > min_range_1 && frequency < max_range_1) ||
+              (frequency > min_range_2 && frequency < max_range_2)) {
+              freq_1.emplace_back(ix, iy, frequency);
+              frequency = roundUp(frequency, 500);
+              if (1 == frequency_points.count(frequency)) {
+                frequency_points[frequency].emplace_back(ix, iy);
+              } else {
+                std::vector<std::tuple<int, int>> point{{ix, iy}};
+                frequency_points[frequency] = point;
+              }
             }
             rawImg.at<float>(iy, ix) = frequency;
           } else {
@@ -226,25 +243,75 @@ private:
       }
     }
 
-    double mean_x = 0;
-    double mean_y = 0;
-    for (const auto& freq : freq_1) {
-      mean_x += std::get<0>(freq);
-      mean_y += std::get<1>(freq);
-    }
-    if (!freq_1.empty()) {
-      mean_x /= freq_1.size();
-      mean_y /= freq_1.size();
+    std::vector<std::tuple<int, int>> filtered_points;
+    //for (const auto& [key, value] : points) {
+    for (const auto & frequency_point : frequency_points) {
+      //   std::cout << '[' << key << "] = " << value << "; ";
+      std::cout << "point: " << frequency_point.first << std::endl;
 
-      double variance_x = 0;
-      double variance_y = 0;
-      for (const auto& freq : freq_1) {
-        variance_x += (std::get<0>(freq) - mean_x) * 2;
-        variance_y += (std::get<1>(freq) - mean_y) * 2;
+      std::vector<std::size_t> assigned_indices;
+      //for (const auto& point : frequency_point.second) {
+      for (std::size_t i = 0; i < frequency_point.second.size(); ++i) {
+        if (std::count(assigned_indices.begin(), assigned_indices.end(), i)) {
+          continue;
+        }
+
+        std::vector<std::size_t> candidate_indices;
+        std::vector<double> x_values;
+        std::vector<double> y_values;
+        auto x = std::get<0>(frequency_point.second.at(i));
+        auto y = std::get<1>(frequency_point.second.at(i));
+
+        std::size_t counts = 0;
+        // for (const auto& point_candidate : frequency_point.second) {
+        for (std::size_t j = i + 1; j < frequency_point.second.size(); ++j) {
+          if (std::count(assigned_indices.begin(), assigned_indices.end(), j)) {
+            continue;
+          }
+          auto x_candidate = std::get<0>(frequency_point.second.at(j));
+          auto y_candidate = std::get<1>(frequency_point.second.at(j));
+
+          if ((std::fabs(x - x_candidate) < 70) && (std::fabs(y - y_candidate) < 70)) {
+            candidate_indices.emplace_back(j);
+            x_values.emplace_back(x_candidate);
+            y_values.emplace_back(y_candidate);
+            counts++;
+          }
+        }
+
+        if (40 < counts) {
+          candidate_indices.emplace_back(i);
+          x_values.emplace_back(x);
+          y_values.emplace_back(y);
+          auto mean_x = std::reduce(x_values.begin(), x_values.end());
+          mean_x /= x_values.size();
+          auto mean_y = std::reduce(y_values.begin(), y_values.end());
+          mean_y /= y_values.size();
+
+          bool insert = true;
+          for (const auto& point : filtered_points) {
+            x = std::get<0>(point);
+            y = std::get<1>(point);
+
+            if ((std::fabs(x - mean_x) < 30) && (std::fabs(y - mean_y) < 30)) {
+              insert = false;
+              break;
+            }
+          }
+          if (insert) {
+            filtered_points.emplace_back(mean_x, mean_y);
+          }
+
+          assigned_indices.insert(
+            assigned_indices.end(), candidate_indices.begin(), candidate_indices.end());
+        }
       }
+    }
 
-      std::cout << "X: mean: " << mean_x << ", variance: " << variance_x << std::endl;
-      std::cout << "Y: mean: " << mean_y << ", variance: " << variance_y << std::endl;
+    std::cout << "Filtered points:" << std::endl;
+    for (const auto & filtered_point : filtered_points) {
+      std::cout << "x: " << std::get<0>(filtered_point) << ", y: " << std::get<1>(filtered_point)
+                << std::endl;
     }
 
     return (rawImg);

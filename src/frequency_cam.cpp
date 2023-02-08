@@ -23,6 +23,21 @@
 
 namespace frequency_cam
 {
+
+int roundUp(const int numToRound, const int multiple)
+{
+    if (multiple == 0) {
+      return numToRound;
+    }
+
+    int remainder = numToRound % multiple;
+    if (remainder == 0) {
+      return numToRound;
+    }
+
+    return numToRound + multiple - remainder;
+}
+
 FrequencyCam::~FrequencyCam() { delete[] state_; }
 
 static void compute_alpha_beta(const double T_cut, double * alpha, double * beta)
