@@ -35,7 +35,11 @@ int roundUp(const int numToRound, const int multiple);
 class FrequencyCam : public event_array_codecs::EventProcessor
 {
 public:
-  FrequencyCam() {}
+  FrequencyCam()
+  {
+    csv_file_.open("frequency_points.csv");
+    csv_file_ << "timestamp,x,y,frequency.\n";
+  }
   ~FrequencyCam();
 
   FrequencyCam(const FrequencyCam &) = delete;
@@ -315,6 +319,9 @@ private:
                 << ", y: " << std::get<1>(filtered_frequency_points.at(i))
                 << ", frequency: " << std::get<2>(filtered_frequency_points.at(i))
                 << ", number of points: " << number_of_points.at(i) << std::endl;
+      csv_file_ << std::to_string(lastEventTime_) << "," << std::get<0>(filtered_frequency_points.at(i)) << ","
+                << std::get<1>(filtered_frequency_points.at(i))
+                << "," std::get<1>(filtered_frequency_points.at(i)) << \n ";
     }
 
     return (rawImg);
@@ -347,6 +354,8 @@ private:
   uint16_t debugX_{0};
   uint16_t debugY_{0};
   uint64_t timeOffset_{0};
+
+  std::ofstream csv_file_;
 };
 std::ostream & operator<<(std::ostream & os, const FrequencyCam::Event & e);
 }  // namespace frequency_cam

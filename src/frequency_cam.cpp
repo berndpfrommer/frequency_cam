@@ -38,7 +38,10 @@ int roundUp(const int numToRound, const int multiple)
     return numToRound + multiple - remainder;
 }
 
-FrequencyCam::~FrequencyCam() { delete[] state_; }
+FrequencyCam::~FrequencyCam() {
+  csv_file_.close();
+  delete[] state_;
+}
 
 static void compute_alpha_beta(const double T_cut, double * alpha, double * beta)
 {
