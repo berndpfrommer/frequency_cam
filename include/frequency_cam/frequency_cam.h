@@ -24,6 +24,7 @@
 #include <map>
 #include <numeric>
 #include <opencv2/core/core.hpp>
+#include <opencv2/imgproc.hpp>
 
 // #define DEBUG
 
@@ -319,6 +320,11 @@ private:
         csv_file_ << lastEventTime_ << "," << std::get<0>(filtered_frequency_points.at(i)) << ","
                   << std::get<1>(filtered_frequency_points.at(i)) << ","
                   << std::get<2>(filtered_frequency_points.at(i)) << "\n";
+        cv::circle(
+          rawImg,
+          {std::get<0>(filtered_frequency_points.at(i)),
+           std::get<1>(filtered_frequency_points.at(i))},
+          2, CV_RGB(4500, 4500, 4500), 4);
       }
     }
 
