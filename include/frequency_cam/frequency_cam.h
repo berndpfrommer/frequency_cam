@@ -201,7 +201,6 @@ private:
   template <class T, class U>
   cv::Mat makeTransformedFrequencyImage(cv::Mat * eventFrame, float eventImageDt)
   {
-    std::vector<std::tuple<int, int, int>> freq_1;
     std::map<double, std::vector<std::tuple<int, int>>> frequency_points;
     const int min_range_1 = 2800;
     const int max_range_1 = 3200;
@@ -227,7 +226,6 @@ private:
             if (
               (frequency > min_range_1 && frequency < max_range_1) ||
               (frequency > min_range_2 && frequency < max_range_2)) {
-              freq_1.emplace_back(ix, iy, frequency);
               frequency = roundUp(frequency, 500);
               if (1 == frequency_points.count(frequency)) {
                 frequency_points[frequency].emplace_back(ix, iy);
@@ -246,10 +244,8 @@ private:
 
     std::vector<std::tuple<int, int, int>> filtered_frequency_points;
     std::vector<std::size_t> number_of_points;
-    //for (const auto& [key, value] : points) {
     for (const auto & frequency_point : frequency_points) {
       std::vector<std::size_t> assigned_indices;
-      //for (const auto& point : frequency_point.second) {
       for (std::size_t i = 0; i < frequency_point.second.size(); ++i) {
         if (std::count(assigned_indices.begin(), assigned_indices.end(), i)) {
           continue;
@@ -262,7 +258,6 @@ private:
         auto y = std::get<1>(frequency_point.second.at(i));
 
         std::size_t counts = 0;
-        // for (const auto& point_candidate : frequency_point.second) {
         for (std::size_t j = i + 1; j < frequency_point.second.size(); ++j) {
           if (std::count(assigned_indices.begin(), assigned_indices.end(), j)) {
             continue;
