@@ -265,7 +265,7 @@ private:
           auto x_candidate = std::get<0>(frequency_point.second.at(j));
           auto y_candidate = std::get<1>(frequency_point.second.at(j));
 
-          if ((std::fabs(x - x_candidate) < 70) && (std::fabs(y - y_candidate) < 70)) {
+          if ((std::fabs(x - x_candidate) < 20) && (std::fabs(y - y_candidate) < 20)) {
             candidate_indices.emplace_back(j);
             x_values.emplace_back(x_candidate);
             y_values.emplace_back(y_candidate);
@@ -273,7 +273,7 @@ private:
           }
         }
 
-        if (40 < counts) {
+        if (10 < counts) {
           candidate_indices.emplace_back(i);
           x_values.emplace_back(x);
           y_values.emplace_back(y);
