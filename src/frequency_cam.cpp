@@ -105,7 +105,7 @@ void FrequencyCam::initializeState(uint32_t width, uint32_t height, uint64_t t_f
 }
 
 cv::Mat FrequencyCam::makeFrequencyAndEventImage(
-  cv::Mat * evImg, bool overlayEvents, bool useLogFrequency, float dt) const
+  cv::Mat * evImg, bool overlayEvents, bool useLogFrequency, float dt)
 {
   if (overlayEvents) {
     *evImg = cv::Mat::zeros(height_, width_, CV_8UC1);

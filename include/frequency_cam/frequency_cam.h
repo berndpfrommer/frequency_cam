@@ -35,11 +35,7 @@ int roundUp(const int numToRound, const int multiple);
 class FrequencyCam : public event_array_codecs::EventProcessor
 {
 public:
-  FrequencyCam()
-  {
-    csv_file_.open("frequency_points.csv");
-    csv_file_ << "timestamp,x,y,frequency.\n";
-  }
+  FrequencyCam() : csv_file_("frequency_points.csv") { csv_file_ << "timestamp,x,y,frequency.\n"; }
   ~FrequencyCam();
 
   FrequencyCam(const FrequencyCam &) = delete;
@@ -66,7 +62,7 @@ public:
 
   // returns frequency image
   cv::Mat makeFrequencyAndEventImage(
-    cv::Mat * eventImage, bool overlayEvents, bool useLogFrequency, float dt) const;
+    cv::Mat * eventImage, bool overlayEvents, bool useLogFrequency, float dt);
 
   void getStatistics(size_t * numEvents) const;
   void resetStatistics();
@@ -202,7 +198,7 @@ private:
   };
 
   template <class T, class U>
-  cv::Mat makeTransformedFrequencyImage(cv::Mat * eventFrame, float eventImageDt) const
+  cv::Mat makeTransformedFrequencyImage(cv::Mat * eventFrame, float eventImageDt)
   {
     std::vector<std::tuple<int, int, int>> freq_1;
     std::map<double, std::vector<std::tuple<int, int>>> frequency_points;
@@ -311,17 +307,19 @@ private:
       }
     }
 
-    std::cout << "Filtered points:" << std::endl;
-    std::cout << "time stamp: " << lastEventTime_ << std::endl;
-    //for (const auto & filtered_point : filtered_points) {
-    for (std::size_t i = 0; i < filtered_frequency_points.size(); ++i) {
-      std::cout << "x: " << std::get<0>(filtered_frequency_points.at(i))
-                << ", y: " << std::get<1>(filtered_frequency_points.at(i))
-                << ", frequency: " << std::get<2>(filtered_frequency_points.at(i))
-                << ", number of points: " << number_of_points.at(i) << std::endl;
-      csv_file_ << std::to_string(lastEventTime_) << "," << std::get<0>(filtered_frequency_points.at(i)) << ","
-                << std::get<1>(filtered_frequency_points.at(i))
-                << "," std::get<1>(filtered_frequency_points.at(i)) << \n ";
+    if (!filtered_frequency_points.empty()) {
+      std::cout << "Filtered points:" << std::endl;
+      std::cout << "time stamp: " << lastEventTime_ << std::endl;
+      //for (const auto & filtered_point : filtered_points) {
+      for (std::size_t i = 0; i < filtered_frequency_points.size(); ++i) {
+        std::cout << "x: " << std::get<0>(filtered_frequency_points.at(i))
+                  << ", y: " << std::get<1>(filtered_frequency_points.at(i))
+                  << ", frequency: " << std::get<2>(filtered_frequency_points.at(i))
+                  << ", number of points: " << number_of_points.at(i) << std::endl;
+        csv_file_ << lastEventTime_ << "," << std::get<0>(filtered_frequency_points.at(i)) << ","
+                  << std::get<1>(filtered_frequency_points.at(i)) << ","
+                  << std::get<2>(filtered_frequency_points.at(i)) << "\n";
+      }
     }
 
     return (rawImg);
