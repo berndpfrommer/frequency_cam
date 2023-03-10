@@ -41,6 +41,9 @@ int roundUp(const int numToRound, const int multiple)
 FrequencyCam::~FrequencyCam() {
   csv_file_.close();
   delete[] state_;
+
+  std::cout << "Number of external triggers: " << nrExtTriggers_ << std::endl;
+  std::cout << "Number of matches: " << nrMatches_ << std::endl;
 }
 
 static void compute_alpha_beta(const double T_cut, double * alpha, double * beta)
@@ -104,20 +107,43 @@ void FrequencyCam::initializeState(uint32_t width, uint32_t height, uint64_t t_f
   }
 }
 
-cv::Mat FrequencyCam::makeFrequencyAndEventImage(
+std::optional<cv::Mat> FrequencyCam::makeFrequencyAndEventImage(
   cv::Mat * evImg, bool overlayEvents, bool useLogFrequency, float dt)
 {
-  if (overlayEvents) {
-    *evImg = cv::Mat::zeros(height_, width_, CV_8UC1);
+  if (hasValidTime_) {
+    // Get the smallest difference
+    auto it = std::min_element(eventTimesNs_.begin(), eventTimesNs_.end(), [&value = sensor_time_] (uint64_t a, uint64_t b) {
+          auto diff_a =  (a > value) ? a - value : value - a;
+          auto diff_b = (value > b) ? value - b : b - value;
+          return diff_a < diff_b;
+    });
+    if (it != eventTimesNs_.end()) {
+      auto difference = (*it > sensor_time_) ? *it - sensor_time_ : sensor_time_ - *it;
+      // std::cout << "Difference: " << difference << std::endl;
+      if (difference < 500 * 1e3) {
+        // std::cout << "event time: " << lastEventTimeNs_ << std::endl;
+        // std::cout << "trigger time: " << sensor_time_ << std::endl;
+        hasValidTime_ = false;
+        eventTimesNs_.clear();
+        nrMatches_++;
+
+        if (overlayEvents) {
+          *evImg = cv::Mat::zeros(height_, width_, CV_8UC1);
+        }
+        if (useLogFrequency) {
+          return (
+            overlayEvents ? makeTransformedFrequencyImage<LogTF, EventFrameUpdater>(evImg, dt)
+                          : makeTransformedFrequencyImage<LogTF, NoEventFrameUpdater>(evImg, dt));
+        }
+        return (
+          overlayEvents ? makeTransformedFrequencyImage<NoTF, EventFrameUpdater>(evImg, dt)
+                        : makeTransformedFrequencyImage<NoTF, NoEventFrameUpdater>(evImg, dt));
+
+      }
+    }
   }
-  if (useLogFrequency) {
-    return (
-      overlayEvents ? makeTransformedFrequencyImage<LogTF, EventFrameUpdater>(evImg, dt)
-                    : makeTransformedFrequencyImage<LogTF, NoEventFrameUpdater>(evImg, dt));
-  }
-  return (
-    overlayEvents ? makeTransformedFrequencyImage<NoTF, EventFrameUpdater>(evImg, dt)
-                  : makeTransformedFrequencyImage<NoTF, NoEventFrameUpdater>(evImg, dt));
+
+  return {};
 }
 
 void FrequencyCam::getStatistics(size_t * numEvents) const { *numEvents = eventCount_; }

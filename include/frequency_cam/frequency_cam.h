@@ -18,11 +18,13 @@
 
 #include <event_array_codecs/event_processor.h>
 
+#include <atomic>
 #include <cstdint>
 #include <fstream>
 #include <iostream>
 #include <map>
 #include <numeric>
+#include <optional>
 #include <opencv2/core/core.hpp>
 #include <opencv2/imgproc.hpp>
 
@@ -45,12 +47,34 @@ public:
   // ------------- inherited from EventProcessor
   inline void eventCD(uint64_t sensor_time, uint16_t ex, uint16_t ey, uint8_t polarity) override
   {
+    // std::cout << "Event: sensor_time: " << sensor_time << std::endl;
     Event e(shorten_time(sensor_time), ex, ey, polarity);
     updateState(&state_[e.y * width_ + e.x], e);
     lastEventTime_ = e.t;
     eventCount_++;
+    eventTimesNs_.emplace_back(sensor_time);
   }
-  void eventExtTrigger(uint64_t, uint8_t, uint8_t) override {}
+  void eventExtTrigger(uint64_t sensor_time, uint8_t edge, uint8_t /*id*/) override
+  {
+    if (!eventExtTriggerInitialized_) {
+      lasteExternalEdge_ = edge;
+      eventExtTriggerInitialized_ = true;
+    } else {
+      if (lasteExternalEdge_ == edge) {
+        std::cerr << "Missed an external trigger edge" << std::endl;
+      }
+      // Take second event (falling edge) since this is the end of the exposure time
+      // of the FB camera
+      if (edge == 0) {
+        sensor_time_ = sensor_time;
+        hasValidTime_ = true;
+        nrExtTriggers_++;
+      }
+      lasteExternalEdge_ = edge;
+    }
+    // std::cout << "External trigger: sensor_time: " << sensor_time << ", edge: " << std::to_string(edge) << ", id: " << std::to_string(id) << std::endl;
+  }
+
   void finished() override {}
   void rawData(const char *, size_t) override {}
   // ------------- end of inherited from EventProcessor
@@ -62,7 +86,7 @@ public:
   void initializeState(uint32_t width, uint32_t height, uint64_t t_first, uint64_t t_off);
 
   // returns frequency image
-  cv::Mat makeFrequencyAndEventImage(
+  std::optional<cv::Mat> makeFrequencyAndEventImage(
     cv::Mat * eventImage, bool overlayEvents, bool useLogFrequency, float dt);
 
   void getStatistics(size_t * numEvents) const;
@@ -339,6 +363,7 @@ private:
   uint32_t height_{0};          // image height
   uint64_t eventCount_{0};
   uint32_t lastEventTime_;
+  std::vector<uint64_t> eventTimesNs_{0};
   // ---------- variables for state update
   variable_t c_[2];
   variable_t c_p_{0};
@@ -352,7 +377,13 @@ private:
   std::ofstream debug_;
   uint16_t debugX_{0};
   uint16_t debugY_{0};
+  std::atomic<bool> hasValidTime_{false};
   uint64_t timeOffset_{0};
+  uint64_t sensor_time_;
+  bool eventExtTriggerInitialized_{false};
+  std::size_t nrExtTriggers_{0};
+  std::size_t nrMatches_{0};
+  uint8_t lasteExternalEdge_;
 
   std::ofstream csv_file_;
 };
