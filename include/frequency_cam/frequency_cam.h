@@ -226,10 +226,12 @@ private:
   cv::Mat makeTransformedFrequencyImage(cv::Mat * eventFrame, float eventImageDt)
   {
     std::map<double, std::vector<std::tuple<int, int>>> frequency_points;
-    const int min_range_1 = 2800;
-    const int max_range_1 = 3200;
-    const int min_range_2 = 3800;
-    const int max_range_2 = 4200;
+    // const int min_range_1 = 2800;
+    // const int max_range_1 = 3200;
+    // const int min_range_2 = 3800;
+    // const int max_range_2 = 4200;
+    const int min_range_2 = 1500;
+    const int max_range_2 = 2500;
     cv::Mat rawImg(height_, width_, CV_32FC1, 0.0);
     const double maxDt = 1.0 / freq_[0] * timeoutCycles_;
     const double minFreq = T::tf(freq_[0]);
@@ -248,7 +250,7 @@ private:
           if (dt < maxDt * timeoutCycles_ && dt * f < timeoutCycles_) {
             auto frequency = std::max(T::tf(f), minFreq);
             if (
-              (frequency > min_range_1 && frequency < max_range_1) ||
+              // (frequency > min_range_1 && frequency < max_range_1) ||
               (frequency > min_range_2 && frequency < max_range_2)) {
               frequency = roundUp(frequency, 500);
               if (1 == frequency_points.count(frequency)) {
