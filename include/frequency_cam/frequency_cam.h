@@ -329,6 +329,8 @@ private:
       }
     }
 
+    // if (!filtered_frequency_points.empty()) {
+    if (filtered_frequency_points.size() == 3) {
     if (!filtered_frequency_points.empty()) {
       std::cout << "Filtered points:" << std::endl;
       std::cout << "time stamp: " << lastEventTime_ << std::endl;
