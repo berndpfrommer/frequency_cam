@@ -45,12 +45,16 @@ def launch_setup(context, *args, **kwargs):
              'debug_y': 194,
              'use_log_frequency': False,
              'overlay_events': True,
-             'bag_file': LaunchConfig('bag').perform(context),
+             #'bag_file': LaunchConfig('bag').perform(context),
+             'bag_file': '2023-03-08-wand_1-dvs2',
+             'trigger_file': 'triggers.txt',
              'publishing_frequency': 25.0}],
         remappings=[
             ('~/events', event_topic),
             ('~/image', image_topic)
-        ])
+        ]#,
+        #prefix=['gdb -ex run --args']
+    )
     return [node]
 
 
