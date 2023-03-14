@@ -27,6 +27,7 @@
 #include <optional>
 #include <opencv2/core/core.hpp>
 #include <opencv2/imgproc.hpp>
+#include <eigen3/Eigen/Dense>
 
 // #define DEBUG
 
@@ -331,6 +332,15 @@ private:
 
     // if (!filtered_frequency_points.empty()) {
     if (filtered_frequency_points.size() == 3) {
+
+      // Eigen::Matrix3f matrix;
+      // matrix << std::get<0>(filtered_frequency_points.at(0)), std::get<1>(filtered_frequency_points.at(0)), 1.0,
+      //           std::get<0>(filtered_frequency_points.at(1)), std::get<1>(filtered_frequency_points.at(1)), 1.0,
+      //           std::get<0>(filtered_frequency_points.at(2)), std::get<1>(filtered_frequency_points.at(2)), 1.0;
+      // Eigen::FullPivLU<Eigen::Matrix3f> lu_decomp(matrix);
+      // auto rank = lu_decomp.rank();
+      // std::cout << "Rank: " << rank << std::endl;
+      // // result = rank([x2-x1, y2-y1; x3-x1, y3-y1]) < 2;
     if (!filtered_frequency_points.empty()) {
       std::cout << "Filtered points:" << std::endl;
       std::cout << "time stamp: " << lastEventTime_ << std::endl;
