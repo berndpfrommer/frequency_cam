@@ -74,7 +74,7 @@ public:
       }
       lasteExternalEdge_ = edge;
     }
-    // std::cout << "External trigger: sensor_time: " << sensor_time << ", edge: " << std::to_string(edge) << ", id: " << std::to_string(id) << std::endl;
+    // std::cout << "External trigger: sensor_time: " << sensor_time << ", edge: " << std::to_string(edge) << std::endl;
   }
 
   void finished() override {}
