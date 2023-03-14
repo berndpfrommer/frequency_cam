@@ -43,7 +43,8 @@ FrequencyCam::~FrequencyCam() {
   delete[] state_;
 
   std::cout << "Number of external triggers: " << nrExtTriggers_ << std::endl;
-  std::cout << "Number of matches: " << nrMatches_ << std::endl;
+  std::cout << "Number of time synchronization matches: " << nrSyncMatches_ << std::endl;
+  std::cout << "Number of detected wands: " << nrDetectedWands_ << std::endl;
 }
 
 static void compute_alpha_beta(const double T_cut, double * alpha, double * beta)
@@ -110,45 +111,103 @@ void FrequencyCam::initializeState(uint32_t width, uint32_t height, uint64_t t_f
 std::optional<cv::Mat> FrequencyCam::makeFrequencyAndEventImage(
   cv::Mat * evImg, bool overlayEvents, bool useLogFrequency, float dt)
 {
-  if (hasValidTime_) {
-    // Get the smallest difference
-    auto it = std::min_element(eventTimesNs_.begin(), eventTimesNs_.end(), [&value = sensor_time_] (uint64_t a, uint64_t b) {
-          auto diff_a =  (a > value) ? a - value : value - a;
-          auto diff_b = (value > b) ? value - b : b - value;
-          return diff_a < diff_b;
-    });
-    if (it != eventTimesNs_.end()) {
-      auto difference = (*it > sensor_time_) ? *it - sensor_time_ : sensor_time_ - *it;
-      // std::cout << "Difference: " << difference << std::endl;
-      if (difference < 500 * 1e3) {
-        // std::cout << "event time: " << lastEventTimeNs_ << std::endl;
-        // std::cout << "trigger time: " << sensor_time_ << std::endl;
-        hasValidTime_ = false;
-        eventTimesNs_.clear();
-        nrMatches_++;
+  if (hasValidTime_ || !externalTriggers_.empty()) {
+#pragma GCC diagnostic ignored "-Wunused-but-set-variable"
+    uint64_t difference = 1e6;
+    uint64_t trigger_time = 0;
+    uint64_t event_time = 0;
 
-        if (overlayEvents) {
-          *evImg = cv::Mat::zeros(height_, width_, CV_8UC1);
-        }
-        if (useLogFrequency) {
-          return (
-            overlayEvents ? makeTransformedFrequencyImage<LogTF, EventFrameUpdater>(evImg, dt)
-                          : makeTransformedFrequencyImage<LogTF, NoEventFrameUpdater>(evImg, dt));
-        }
-        return (
-          overlayEvents ? makeTransformedFrequencyImage<NoTF, EventFrameUpdater>(evImg, dt)
-                        : makeTransformedFrequencyImage<NoTF, NoEventFrameUpdater>(evImg, dt));
-
+    std::vector<uint64_t>::iterator it = eventTimesNs_.end();
+    std::vector<uint64_t>::iterator iterator_to_remove = externalTriggers_.end();
+    if (hasValidTime_) {
+      // Get the smallest difference
+      auto it = std::min_element(eventTimesNs_.begin(), eventTimesNs_.end(), [&value = sensor_time_] (uint64_t a, uint64_t b) {
+            uint64_t diff_a =  (a > value) ? a - value : value - a;
+            uint64_t diff_b = (value > b) ? value - b : b - value;
+            return diff_a < diff_b;
+      });
+      if (it != eventTimesNs_.end()) {
+        difference = (*it > sensor_time_) ? *it - sensor_time_ : sensor_time_ - *it;
+        trigger_time = sensor_time_;
+        event_time = *it;
       }
+    } else {
+      uint64_t min_difference = 1e6;
+      // for (const auto& trigger_time_i : externalTriggers_) {
+      for (auto trigger_it = externalTriggers_.begin(); trigger_it != externalTriggers_.end(); trigger_it++) {
+        it = std::min_element(eventTimesNs_.begin(), eventTimesNs_.end(), [&value = *trigger_it] (uint64_t a, uint64_t b) {
+              uint64_t diff_a =  (a > value) ? a - value : value - a;
+              uint64_t diff_b = (value > b) ? value - b : b - value;
+              return diff_a < diff_b;
+        });
+        if (it != eventTimesNs_.end()) {
+          difference = (*it > *trigger_it) ? *it - *trigger_it : *trigger_it - *it;
+          if (difference < min_difference) {
+            trigger_time = *trigger_it;
+            event_time = *it;
+            iterator_to_remove = trigger_it;
+            // std::cout << "event time: " << event_time << std::endl;
+            // std::cout << "trigger time: " << trigger_time << std::endl;
+            // // externalTriggers_.erase(it);
+            // std::cout << "difference: " << difference << std::endl;
+            min_difference = difference;
+          }
+        }
+      }
+      difference = min_difference;
+    }
+    eventTimesNs_.clear();
+
+    if (difference < 500 * 1e3) {
+      // std::cout << "event time: " << event_time << std::endl;
+      // std::cout << "trigger time: " << trigger_time << std::endl;
+      // std::cout << "difference: " << difference << std::endl;
+      if (!hasValidTime_ && !externalTriggers_.empty() && iterator_to_remove != externalTriggers_.end()) {
+        externalTriggers_.erase(iterator_to_remove);
+        // std::cout << "externalTriggers_.size(): " << externalTriggers_.size() << std::endl;
+      }
+      hasValidTime_ = false;
+      // eventTimesNs_.clear();
+      nrSyncMatches_++;
+
+      if (overlayEvents) {
+        *evImg = cv::Mat::zeros(height_, width_, CV_8UC1);
+      }
+      if (useLogFrequency) {
+        return (
+          overlayEvents ? makeTransformedFrequencyImage<LogTF, EventFrameUpdater>(evImg, dt)
+                        : makeTransformedFrequencyImage<LogTF, NoEventFrameUpdater>(evImg, dt));
+      }
+      return (
+        overlayEvents ? makeTransformedFrequencyImage<NoTF, EventFrameUpdater>(evImg, dt)
+                      : makeTransformedFrequencyImage<NoTF, NoEventFrameUpdater>(evImg, dt));
     }
   }
-
   return {};
 }
 
 void FrequencyCam::getStatistics(size_t * numEvents) const { *numEvents = eventCount_; }
 
 void FrequencyCam::resetStatistics() { eventCount_ = 0; }
+
+void FrequencyCam::setTriggers(const std::string & triggers_file) {
+  std::string line;
+  std::ifstream myfile;
+  myfile.open(triggers_file);
+
+  if(!myfile.is_open()) {
+    std::cerr << "Error open" << std::endl;
+  }
+
+  while(getline(myfile, line)) {
+    uint64_t time_stamp = std::stoi(line);
+    externalTriggers_.emplace_back(time_stamp * 1000);
+  }
+  // for (const auto& element: externalTriggers_) {
+  //   std::cout << "Trigger time stamp: " << element << std::endl;
+  // }
+
+}
 
 std::ostream & operator<<(std::ostream & os, const FrequencyCam::Event & e)
 {

@@ -76,6 +76,7 @@ bool FrequencyCamROS::initialize()
     declare_parameter<int>("num_timeout_cycles", 2.0), debugX_, debugY_);
 
   const std::string bag = this->declare_parameter<std::string>("bag_file", "");
+  const std::string trigger = this->declare_parameter<std::string>("trigger_file", "");
   if (bag.empty()) {
     // start statistics timer only when not playing from bag
     statsTimer_ = rclcpp::create_timer(
@@ -93,12 +94,12 @@ bool FrequencyCamROS::initialize()
       "~/events", qos, std::bind(&FrequencyCamROS::eventMsg, this, std::placeholders::_1));
   } else {
     // reading from bag is only for debugging
-    playEventsFromBag(bag, declare_parameter<std::string>("bag_topic", "/event_camera/events"));
+    playEventsFromBag(bag, declare_parameter<std::string>("bag_topic", "/event_camera/events"), trigger);
   }
   return (true);
 }
 
-void FrequencyCamROS::playEventsFromBag(const std::string & bagName, const std::string & bagTopic)
+void FrequencyCamROS::playEventsFromBag(const std::string & bagName, const std::string & bagTopic, const std::string & trigger_file)
 {
   imageMaker_.setScale(this->declare_parameter<double>("scale_image", 1.0));
   rclcpp::Time lastFrameTime(0);
@@ -110,6 +111,10 @@ void FrequencyCamROS::playEventsFromBag(const std::string & bagName, const std::
   uint32_t frameCount(0);
   const std::string path = this->declare_parameter<std::string>("path", "./frames");
   std::filesystem::create_directories(path);
+
+  if (!trigger_file.empty()) {
+    cam_.setTriggers(trigger_file);
+  }
 
   while (reader.has_next()) {
     auto bagmsg = reader.read_next();

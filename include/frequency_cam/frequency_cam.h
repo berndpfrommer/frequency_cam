@@ -48,10 +48,11 @@ public:
   // ------------- inherited from EventProcessor
   inline void eventCD(uint64_t sensor_time, uint16_t ex, uint16_t ey, uint8_t polarity) override
   {
-    // std::cout << "Event: sensor_time: " << sensor_time << std::endl;
+    // std::cout << "Event: time stamp: " << sensor_time << std::endl;
     Event e(shorten_time(sensor_time), ex, ey, polarity);
     updateState(&state_[e.y * width_ + e.x], e);
     lastEventTime_ = e.t;
+    lastEventTimeNs_ = sensor_time;
     eventCount_++;
     eventTimesNs_.emplace_back(sensor_time);
   }
@@ -92,6 +93,8 @@ public:
 
   void getStatistics(size_t * numEvents) const;
   void resetStatistics();
+
+  void setTriggers(const std::string & triggers_file);
 
 private:
   struct Event  // event representation for convenience
@@ -359,6 +362,8 @@ private:
            std::get<1>(filtered_frequency_points.at(i))},
           2, CV_RGB(4500, 4500, 4500), 4);
       }
+
+      nrDetectedWands_++;
     }
 
     return (rawImg);
@@ -396,10 +401,13 @@ private:
   uint64_t sensor_time_;
   bool eventExtTriggerInitialized_{false};
   std::size_t nrExtTriggers_{0};
-  std::size_t nrMatches_{0};
+  std::size_t nrSyncMatches_{0};
+  std::size_t nrDetectedWands_{0};
   uint8_t lasteExternalEdge_;
 
   std::ofstream csv_file_;
+  std::vector<uint64_t> externalTriggers_;
+  uint64_t lastEventTimeNs_;
 };
 std::ostream & operator<<(std::ostream & os, const FrequencyCam::Event & e);
 }  // namespace frequency_cam
