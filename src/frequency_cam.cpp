@@ -175,12 +175,12 @@ std::optional<cv::Mat> FrequencyCam::makeFrequencyAndEventImage(
       }
       if (useLogFrequency) {
         return (
-          overlayEvents ? makeTransformedFrequencyImage<LogTF, EventFrameUpdater>(evImg, dt)
-                        : makeTransformedFrequencyImage<LogTF, NoEventFrameUpdater>(evImg, dt));
+          overlayEvents ? makeTransformedFrequencyImage<LogTF, EventFrameUpdater>(evImg, dt, trigger_time)
+                        : makeTransformedFrequencyImage<LogTF, NoEventFrameUpdater>(evImg, dt, trigger_time));
       }
       return (
-        overlayEvents ? makeTransformedFrequencyImage<NoTF, EventFrameUpdater>(evImg, dt)
-                      : makeTransformedFrequencyImage<NoTF, NoEventFrameUpdater>(evImg, dt));
+        overlayEvents ? makeTransformedFrequencyImage<NoTF, EventFrameUpdater>(evImg, dt, trigger_time)
+                      : makeTransformedFrequencyImage<NoTF, NoEventFrameUpdater>(evImg, dt, trigger_time));
     }
   }
   return {};

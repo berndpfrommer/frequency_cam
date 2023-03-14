@@ -353,7 +353,7 @@ private:
         //           << ", y: " << std::get<1>(filtered_frequency_points.at(i))
         //           << ", frequency: " << std::get<2>(filtered_frequency_points.at(i))
         //           << ", number of points: " << number_of_points.at(i) << std::endl;
-        csv_file_ << lastEventTime_ << "," << std::get<0>(filtered_frequency_points.at(i)) << ","
+        csv_file_ << trigger_timestamp << "," << std::get<0>(filtered_frequency_points.at(i)) << ","
                   << std::get<1>(filtered_frequency_points.at(i)) << ","
                   << std::get<2>(filtered_frequency_points.at(i)) << "\n";
         cv::circle(
