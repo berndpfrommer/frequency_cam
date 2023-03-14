@@ -344,15 +344,15 @@ private:
       // auto rank = lu_decomp.rank();
       // std::cout << "Rank: " << rank << std::endl;
       // // result = rank([x2-x1, y2-y1; x3-x1, y3-y1]) < 2;
-    if (!filtered_frequency_points.empty()) {
-      std::cout << "Filtered points:" << std::endl;
-      std::cout << "time stamp: " << lastEventTime_ << std::endl;
+
+      // std::cout << "Filtered points:" << std::endl;
+      // std::cout << "time stamp: " << lastEventTime_ << std::endl;
       //for (const auto & filtered_point : filtered_points) {
       for (std::size_t i = 0; i < filtered_frequency_points.size(); ++i) {
-        std::cout << "x: " << std::get<0>(filtered_frequency_points.at(i))
-                  << ", y: " << std::get<1>(filtered_frequency_points.at(i))
-                  << ", frequency: " << std::get<2>(filtered_frequency_points.at(i))
-                  << ", number of points: " << number_of_points.at(i) << std::endl;
+        // std::cout << "x: " << std::get<0>(filtered_frequency_points.at(i))
+        //           << ", y: " << std::get<1>(filtered_frequency_points.at(i))
+        //           << ", frequency: " << std::get<2>(filtered_frequency_points.at(i))
+        //           << ", number of points: " << number_of_points.at(i) << std::endl;
         csv_file_ << lastEventTime_ << "," << std::get<0>(filtered_frequency_points.at(i)) << ","
                   << std::get<1>(filtered_frequency_points.at(i)) << ","
                   << std::get<2>(filtered_frequency_points.at(i)) << "\n";
