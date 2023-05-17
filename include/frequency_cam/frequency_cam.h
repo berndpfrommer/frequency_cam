@@ -39,7 +39,10 @@ int roundUp(const int numToRound, const int multiple);
 class FrequencyCam : public event_array_codecs::EventProcessor
 {
 public:
-  FrequencyCam() : csv_file_("frequency_points.csv") { csv_file_ << "timestamp,x,y,frequency.\n"; }
+  FrequencyCam(const bool use_external_triggers = false,
+               const uint64_t max_time_difference_to_trigger_ = 0)
+  : use_external_triggers_{use_external_triggers},
+    max_time_difference_to_trigger_{max_time_difference_to_trigger} {}
   ~FrequencyCam();
 
   FrequencyCam(const FrequencyCam &) = delete;
@@ -48,7 +51,18 @@ public:
   // ------------- inherited from EventProcessor
   inline void eventCD(uint64_t sensor_time, uint16_t ex, uint16_t ey, uint8_t polarity) override
   {
-    // std::cout << "Event: time stamp: " << sensor_time << std::endl;
+    // If the first time stamp is > 15s, there is an offset which we subtract every time.
+    if (!initialize_time_stamps_) {
+      initialize_time_stamps_ = true;
+      if (sensor_time > 15000000000) {
+        fix_time_stamps_ = true;
+      }
+    }
+    if (fix_time_stamps_) {
+      // Offset taken from:
+      // https://docs.prophesee.ai/stable/data/encoding_formats/evt3.html#evt-time-high
+      sensor_time -= 16777215000;
+    }
     Event e(shorten_time(sensor_time), ex, ey, polarity);
     updateState(&state_[e.y * width_ + e.x], e);
     lastEventTime_ = e.t;
@@ -58,11 +72,23 @@ public:
   }
   void eventExtTrigger(uint64_t sensor_time, uint8_t edge, uint8_t /*id*/) override
   {
+    // If the first time stamp is > 15s, there is an offset which we subtract every time.
+    if (!initialize_time_stamps_) {
+      initialize_time_stamps_ = true;
+      if (sensor_time > 15000000000) {
+        fix_time_stamps_ = true;
+      }
+    }
+    if (fix_time_stamps_) {
+      // Offset taken from:
+      // https://docs.prophesee.ai/stable/data/encoding_formats/evt3.html#evt-time-high
+      sensor_time -= 16777215000;
+    }
     if (!eventExtTriggerInitialized_) {
-      lasteExternalEdge_ = edge;
+      lastExternalEdge_ = edge;
       eventExtTriggerInitialized_ = true;
     } else {
-      if (lasteExternalEdge_ == edge) {
+      if (lastExternalEdge_ == edge) {
         std::cerr << "Missed an external trigger edge" << std::endl;
       }
       // Take second event (falling edge) since this is the end of the exposure time
@@ -72,9 +98,8 @@ public:
         hasValidTime_ = true;
         nrExtTriggers_++;
       }
-      lasteExternalEdge_ = edge;
+      lastExternalEdge_ = edge;
     }
-    // std::cout << "External trigger: sensor_time: " << sensor_time << ", edge: " << std::to_string(edge) << std::endl;
   }
 
   void finished() override {}
@@ -229,13 +254,6 @@ private:
   template <class T, class U>
   cv::Mat makeTransformedFrequencyImage(cv::Mat * eventFrame, float eventImageDt)
   {
-    std::map<double, std::vector<std::tuple<int, int>>> frequency_points;
-    // const int min_range_1 = 2800;
-    // const int max_range_1 = 3200;
-    // const int min_range_2 = 3800;
-    // const int max_range_2 = 4200;
-    const int min_range_2 = 1500;
-    const int max_range_2 = 2500;
     cv::Mat rawImg(height_, width_, CV_32FC1, 0.0);
     const double maxDt = 1.0 / freq_[0] * timeoutCycles_;
     const double minFreq = T::tf(freq_[0]);
@@ -253,117 +271,12 @@ private:
           // filter out any pixels that have not been updated recently
           if (dt < maxDt * timeoutCycles_ && dt * f < timeoutCycles_) {
             auto frequency = std::max(T::tf(f), minFreq);
-            if (
-              // (frequency > min_range_1 && frequency < max_range_1) ||
-              (frequency > min_range_2 && frequency < max_range_2)) {
-              frequency = roundUp(frequency, 500);
-              if (1 == frequency_points.count(frequency)) {
-                frequency_points[frequency].emplace_back(ix, iy);
-              } else {
-                std::vector<std::tuple<int, int>> point{{ix, iy}};
-                frequency_points[frequency] = point;
-              }
-            }
             rawImg.at<float>(iy, ix) = frequency;
           } else {
             rawImg.at<float>(iy, ix) = 0;  // mark as invalid
           }
         }
       }
-    }
-
-    std::vector<std::tuple<int, int, int>> filtered_frequency_points;
-    std::vector<std::size_t> number_of_points;
-    for (const auto & frequency_point : frequency_points) {
-      std::vector<std::size_t> assigned_indices;
-      for (std::size_t i = 0; i < frequency_point.second.size(); ++i) {
-        if (std::count(assigned_indices.begin(), assigned_indices.end(), i)) {
-          continue;
-        }
-
-        std::vector<std::size_t> candidate_indices;
-        std::vector<double> x_values;
-        std::vector<double> y_values;
-        auto x = std::get<0>(frequency_point.second.at(i));
-        auto y = std::get<1>(frequency_point.second.at(i));
-
-        std::size_t counts = 0;
-        for (std::size_t j = i + 1; j < frequency_point.second.size(); ++j) {
-          if (std::count(assigned_indices.begin(), assigned_indices.end(), j)) {
-            continue;
-          }
-          auto x_candidate = std::get<0>(frequency_point.second.at(j));
-          auto y_candidate = std::get<1>(frequency_point.second.at(j));
-
-          if ((std::fabs(x - x_candidate) < 20) && (std::fabs(y - y_candidate) < 20)) {
-            candidate_indices.emplace_back(j);
-            x_values.emplace_back(x_candidate);
-            y_values.emplace_back(y_candidate);
-            counts++;
-          }
-        }
-
-        if (10 < counts) {
-          candidate_indices.emplace_back(i);
-          x_values.emplace_back(x);
-          y_values.emplace_back(y);
-          auto mean_x = std::reduce(x_values.begin(), x_values.end());
-          mean_x /= x_values.size();
-          auto mean_y = std::reduce(y_values.begin(), y_values.end());
-          mean_y /= y_values.size();
-
-          bool insert = true;
-          for (const auto & point : filtered_frequency_points) {
-            x = std::get<0>(point);
-            y = std::get<1>(point);
-
-            if ((std::fabs(x - mean_x) < 30) && (std::fabs(y - mean_y) < 30)) {
-              insert = false;
-              break;
-            }
-          }
-          if (insert) {
-            filtered_frequency_points.emplace_back(mean_x, mean_y, frequency_point.first);
-            number_of_points.emplace_back(x_values.size());
-          }
-
-          assigned_indices.insert(
-            assigned_indices.end(), candidate_indices.begin(), candidate_indices.end());
-        }
-      }
-    }
-
-    // if (!filtered_frequency_points.empty()) {
-    if (filtered_frequency_points.size() == 3) {
-
-      // Eigen::Matrix3f matrix;
-      // matrix << std::get<0>(filtered_frequency_points.at(0)), std::get<1>(filtered_frequency_points.at(0)), 1.0,
-      //           std::get<0>(filtered_frequency_points.at(1)), std::get<1>(filtered_frequency_points.at(1)), 1.0,
-      //           std::get<0>(filtered_frequency_points.at(2)), std::get<1>(filtered_frequency_points.at(2)), 1.0;
-      // Eigen::FullPivLU<Eigen::Matrix3f> lu_decomp(matrix);
-      // auto rank = lu_decomp.rank();
-      // std::cout << "Rank: " << rank << std::endl;
-      // // result = rank([x2-x1, y2-y1; x3-x1, y3-y1]) < 2;
-
-      // std::cout << "Filtered points:" << std::endl;
-      // std::cout << "time stamp: " << lastEventTime_ << std::endl;
-      //for (const auto & filtered_point : filtered_points) {
-      for (std::size_t i = 0; i < filtered_frequency_points.size(); ++i) {
-        // std::cout << "x: " << std::get<0>(filtered_frequency_points.at(i))
-        //           << ", y: " << std::get<1>(filtered_frequency_points.at(i))
-        //           << ", frequency: " << std::get<2>(filtered_frequency_points.at(i))
-        //           << ", number of points: " << number_of_points.at(i) << std::endl;
-        csv_file_ << trigger_timestamp << "," << std::get<0>(filtered_frequency_points.at(i)) << ","
-                  << std::get<1>(filtered_frequency_points.at(i)) << ","
-                  << std::get<2>(filtered_frequency_points.at(i)) << "\n";
-        cv::circle(
-          rawImg,
-          {std::get<0>(filtered_frequency_points.at(i)),
-           std::get<1>(filtered_frequency_points.at(i))},
-          2, CV_RGB(4500, 4500, 4500), 4);
-      }
-
-      nrDetectedWands_++;
     }
 
     return (rawImg);
@@ -403,11 +316,15 @@ private:
   std::size_t nrExtTriggers_{0};
   std::size_t nrSyncMatches_{0};
   std::size_t nrDetectedWands_{0};
-  uint8_t lasteExternalEdge_;
+  uint8_t lastExternalEdge_;
 
-  std::ofstream csv_file_;
   std::vector<uint64_t> externalTriggers_;
   uint64_t lastEventTimeNs_;
+  bool initialize_time_stamps_{false};
+  bool fix_time_stamps_{false}; 
+
+  bool use_external_triggers_;
+  uint64_t max_time_difference_to_trigger_;
 };
 std::ostream & operator<<(std::ostream & os, const FrequencyCam::Event & e);
 }  // namespace frequency_cam

@@ -111,15 +111,104 @@ void FrequencyCam::initializeState(uint32_t width, uint32_t height, uint64_t t_f
 std::optional<cv::Mat> FrequencyCam::makeFrequencyAndEventImage(
   cv::Mat * evImg, bool overlayEvents, bool useLogFrequency, float dt)
 {
-  if (hasValidTime_ || !externalTriggers_.empty()) {
-#pragma GCC diagnostic ignored "-Wunused-but-set-variable"
-    uint64_t difference = 1e6;
+  std::vector<cv::Mat> result;
+  bool distance_too_big = false;
+  // In case the data comes from a ROS bag, chances are that one chunck of data
+  // contains events corresponding to multiiple trigger time stamps. Therefore,
+  // we loop until the temporal distance gets too big.
+  std::size_t iteration = 0;
+  while (!distance_too_big && ((use_external_triggers_ && (hasValidTime_ || !externalTriggers_.empty())) ||
+                                !use_external_triggers_) { 
+    uint64_t difference = 1e9;
     uint64_t trigger_time = 0;
     uint64_t event_time = 0;
 
     std::vector<uint64_t>::iterator it = eventTimesNs_.end();
     std::vector<uint64_t>::iterator iterator_to_remove = externalTriggers_.end();
-    if (hasValidTime_) {
+    std::vector<std::vector<uint64_t>::iterator> iterators_to_remove;
+    // We are using the external trigger txt file as source for the trigger time stamps
+    if (!externalTriggers_.empty()) {
+      // We go through all the trigger time stamps (unless the distance gets too high)
+      for (auto trigger_it = externalTriggers_.begin(); trigger_it != externalTriggers_.end(); trigger_it++) {
+        // Get the closest time stamp of the events
+        it = std::min_element(eventTimesNs_.begin(), eventTimesNs_.end(), [&value = *trigger_it] (uint64_t a, uint64_t b) {
+              uint64_t diff_a =  (a > value) ? a - value : value - a;
+              uint64_t diff_b = (value > b) ? value - b : b - value;
+              return diff_a < diff_b;
+        });
+        if (it != eventTimesNs_.end()) {
+          difference = (*it > *trigger_it) ? *it - *trigger_it : *trigger_it - *it;
+
+          // Some useful debug output
+          // std::cout << std::endl;
+          // std::cout << "trigger time: " << *trigger_it << std::endl;
+          // std::cout << "event time: " << *it << std::endl;
+          // std::cout << "difference: " << difference << std::endl;
+          // std::cout << "event time start: " << eventTimesNs_.front() << std::endl;
+          // std::cout << "event slide duration: " << getDifference(eventTimesNs_.back(), eventTimesNs_.front()) / 1000000.0 << " ms" << std::endl;
+          // std::cout << "event time end  : " << eventTimesNs_.back() << std::endl;
+
+          // 1000us
+          if (difference < 1000 * 1e3) {
+            trigger_time = *trigger_it;
+            event_time = *it;
+            iterator_to_remove = trigger_it;
+            // uint64_t event_time_start = eventTimesNs_.front();
+            // uint64_t event_time_end = eventTimesNs_.back();
+            std::cout << "nrSyncMatches_: " << nrSyncMatches_ << std::endl;
+            std::cout << "iteration: " << iteration << std::endl;
+            // std::cout << "event time: " << event_time << std::endl;
+            // std::cout << "trigger time: " << trigger_time << std::endl;
+            // std::cout << "difference: " << difference << std::endl;
+            // std::cout << "event time start: " << event_time_start << std::endl;
+            // std::cout << "event time end  : " << event_time_end << std::endl;
+            // std::cout << "event slide duration: " << getDifference(event_time_end, event_time_start) / 1000000.0 << " ms" << std::endl;
+            std::cout << std::endl;
+            iterators_to_remove.emplace_back(iterator_to_remove);
+
+            hasValidTime_ = false;
+            nrSyncMatches_++;
+
+            if (overlayEvents) {
+              *evImg = cv::Mat::zeros(height_, width_, CV_8UC1);
+            }
+            if (useLogFrequency) {
+              result.emplace_back(
+                overlayEvents ? makeTransformedFrequencyImage<LogTF, EventFrameUpdater>(evImg, dt, trigger_time)
+                              : makeTransformedFrequencyImage<LogTF, NoEventFrameUpdater>(evImg, dt, trigger_time));
+            } else {
+            result.emplace_back(
+              overlayEvents ? makeTransformedFrequencyImage<NoTF, EventFrameUpdater>(evImg, dt, trigger_time)
+                            : makeTransformedFrequencyImage<NoTF, NoEventFrameUpdater>(evImg, dt, trigger_time));
+            }
+          }
+
+          // If the current trigger time stamp is larger then the end time stamp of the
+          // event slice, we do not continue
+          uint64_t event_time_end = eventTimesNs_.back();
+          if (*trigger_it >= event_time_end) {
+            distance_too_big = true;
+            break;
+          }
+        }
+      }
+      // std::cout << "externalTriggers_.size(): " << externalTriggers_.size() << std::endl;
+      // We remove the trigger time stamps for which we found a corresponding event time stamp 
+      for (auto it : iterators_to_remove) {
+        if (it != externalTriggers_.end()) {
+          std::cout << "remove: " << *it << std::endl;
+          *it = 0;
+        }
+      }
+      externalTriggers_.erase(remove(externalTriggers_.begin(), externalTriggers_.end(), 0), externalTriggers_.end() );
+      iterators_to_remove.clear();
+      // std::cout << "externalTriggers_.size(): " << externalTriggers_.size() << std::endl;
+      
+      // If we have gone through all the trigger time stamps or stopped, we stop the while loop
+      distance_too_big = true;
+    }
+    // We are using the received trigger time stamps
+    else {
       // Get the smallest difference
       auto it = std::min_element(eventTimesNs_.begin(), eventTimesNs_.end(), [&value = sensor_time_] (uint64_t a, uint64_t b) {
             uint64_t diff_a =  (a > value) ? a - value : value - a;

@@ -35,6 +35,7 @@ def launch_setup(context, *args, **kwargs):
         # prefix=['valgrind --tool=callgrind --dump-instr=yes
         #  --simulate-cache=yes --collect-jumps=yes'],
         # prefix=['xterm -e gdb -ex run --args'],
+        # prefix=['gdb -ex run --args'],
         name='frequency_cam',
         parameters=[
             {'use_sim_time': LaunchConfig('use_sim_time'),
@@ -46,8 +47,9 @@ def launch_setup(context, *args, **kwargs):
              'use_log_frequency': False,
              'overlay_events': True,
              #'bag_file': LaunchConfig('bag').perform(context),
-             'bag_file': '2023-03-08-wand_1-dvs2',
-             'trigger_file': 'triggers.txt',
+             'bag_file': '2023-05-10_wand_0-dvs1',
+             'trigger_file': '2023-05-10_wand_0_triggers.txt',
+             # 'trigger_file': 'triggers.txt',
              'publishing_frequency': 25.0}],
         remappings=[
             ('~/events', event_topic),
