@@ -20,14 +20,14 @@
 
 #include <atomic>
 #include <cstdint>
+#include <eigen3/Eigen/Dense>
 #include <fstream>
 #include <iostream>
 #include <map>
 #include <numeric>
-#include <optional>
 #include <opencv2/core/core.hpp>
 #include <opencv2/imgproc.hpp>
-#include <eigen3/Eigen/Dense>
+#include <optional>
 
 // #define DEBUG
 
@@ -319,7 +319,7 @@ private:
   std::vector<uint64_t> externalTriggers_;
   uint64_t lastEventTimeNs_;
   bool initialize_time_stamps_{false};
-  bool fix_time_stamps_{false}; 
+  bool fix_time_stamps_{false};
 
   bool use_external_triggers_;
   uint64_t max_time_difference_us_to_trigger_;
