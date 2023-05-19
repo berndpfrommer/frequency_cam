@@ -39,12 +39,10 @@ int roundUp(const int numToRound, const int multiple)
 }
 
 FrequencyCam::~FrequencyCam() {
-  csv_file_.close();
   delete[] state_;
 
   std::cout << "Number of external triggers: " << nrExtTriggers_ << std::endl;
   std::cout << "Number of time synchronization matches: " << nrSyncMatches_ << std::endl;
-  std::cout << "Number of detected wands: " << nrDetectedWands_ << std::endl;
 }
 
 static void compute_alpha_beta(const double T_cut, double * alpha, double * beta)
@@ -58,7 +56,8 @@ static void compute_alpha_beta(const double T_cut, double * alpha, double * beta
 
 bool FrequencyCam::initialize(
   double minFreq, double maxFreq, double cutoffPeriod, int timeoutCycles, uint16_t debugX,
-  uint16_t debugY)
+  uint16_t debugY, const bool use_external_triggers,
+  const uint64_t max_time_difference_us_to_trigger)
 {
 #ifdef DEBUG  // the debug flag must be set in the header file
   debug_.open("freq.txt", std::ofstream::out);
@@ -82,6 +81,10 @@ bool FrequencyCam::initialize(
 
   debugX_ = debugX;
   debugY_ = debugY;
+
+  use_external_triggers_ = use_external_triggers;
+  max_time_difference_us_to_trigger_ = max_time_difference_us_to_trigger;
+
   return (true);
 }
 
@@ -108,7 +111,7 @@ void FrequencyCam::initializeState(uint32_t width, uint32_t height, uint64_t t_f
   }
 }
 
-std::optional<cv::Mat> FrequencyCam::makeFrequencyAndEventImage(
+std::optional<std::vector<cv::Mat>> FrequencyCam::makeFrequencyAndEventImage(
   cv::Mat * evImg, bool overlayEvents, bool useLogFrequency, float dt)
 {
   std::vector<cv::Mat> result;
@@ -118,10 +121,8 @@ std::optional<cv::Mat> FrequencyCam::makeFrequencyAndEventImage(
   // we loop until the temporal distance gets too big.
   std::size_t iteration = 0;
   while (!distance_too_big && ((use_external_triggers_ && (hasValidTime_ || !externalTriggers_.empty())) ||
-                                !use_external_triggers_) { 
+                                !use_external_triggers_)) { 
     uint64_t difference = 1e9;
-    uint64_t trigger_time = 0;
-    uint64_t event_time = 0;
 
     std::vector<uint64_t>::iterator it = eventTimesNs_.end();
     std::vector<uint64_t>::iterator iterator_to_remove = externalTriggers_.end();
@@ -139,31 +140,8 @@ std::optional<cv::Mat> FrequencyCam::makeFrequencyAndEventImage(
         if (it != eventTimesNs_.end()) {
           difference = (*it > *trigger_it) ? *it - *trigger_it : *trigger_it - *it;
 
-          // Some useful debug output
-          // std::cout << std::endl;
-          // std::cout << "trigger time: " << *trigger_it << std::endl;
-          // std::cout << "event time: " << *it << std::endl;
-          // std::cout << "difference: " << difference << std::endl;
-          // std::cout << "event time start: " << eventTimesNs_.front() << std::endl;
-          // std::cout << "event slide duration: " << getDifference(eventTimesNs_.back(), eventTimesNs_.front()) / 1000000.0 << " ms" << std::endl;
-          // std::cout << "event time end  : " << eventTimesNs_.back() << std::endl;
-
-          // 1000us
-          if (difference < 1000 * 1e3) {
-            trigger_time = *trigger_it;
-            event_time = *it;
+          if (difference /*ns*/ < max_time_difference_us_to_trigger_ * 1e3) {
             iterator_to_remove = trigger_it;
-            // uint64_t event_time_start = eventTimesNs_.front();
-            // uint64_t event_time_end = eventTimesNs_.back();
-            std::cout << "nrSyncMatches_: " << nrSyncMatches_ << std::endl;
-            std::cout << "iteration: " << iteration << std::endl;
-            // std::cout << "event time: " << event_time << std::endl;
-            // std::cout << "trigger time: " << trigger_time << std::endl;
-            // std::cout << "difference: " << difference << std::endl;
-            // std::cout << "event time start: " << event_time_start << std::endl;
-            // std::cout << "event time end  : " << event_time_end << std::endl;
-            // std::cout << "event slide duration: " << getDifference(event_time_end, event_time_start) / 1000000.0 << " ms" << std::endl;
-            std::cout << std::endl;
             iterators_to_remove.emplace_back(iterator_to_remove);
 
             hasValidTime_ = false;
@@ -174,12 +152,12 @@ std::optional<cv::Mat> FrequencyCam::makeFrequencyAndEventImage(
             }
             if (useLogFrequency) {
               result.emplace_back(
-                overlayEvents ? makeTransformedFrequencyImage<LogTF, EventFrameUpdater>(evImg, dt, trigger_time)
-                              : makeTransformedFrequencyImage<LogTF, NoEventFrameUpdater>(evImg, dt, trigger_time));
+                overlayEvents ? makeTransformedFrequencyImage<LogTF, EventFrameUpdater>(evImg, dt)
+                              : makeTransformedFrequencyImage<LogTF, NoEventFrameUpdater>(evImg, dt));
             } else {
             result.emplace_back(
-              overlayEvents ? makeTransformedFrequencyImage<NoTF, EventFrameUpdater>(evImg, dt, trigger_time)
-                            : makeTransformedFrequencyImage<NoTF, NoEventFrameUpdater>(evImg, dt, trigger_time));
+              overlayEvents ? makeTransformedFrequencyImage<NoTF, EventFrameUpdater>(evImg, dt)
+                            : makeTransformedFrequencyImage<NoTF, NoEventFrameUpdater>(evImg, dt));
             }
           }
 
@@ -192,17 +170,14 @@ std::optional<cv::Mat> FrequencyCam::makeFrequencyAndEventImage(
           }
         }
       }
-      // std::cout << "externalTriggers_.size(): " << externalTriggers_.size() << std::endl;
       // We remove the trigger time stamps for which we found a corresponding event time stamp 
       for (auto it : iterators_to_remove) {
         if (it != externalTriggers_.end()) {
-          std::cout << "remove: " << *it << std::endl;
           *it = 0;
         }
       }
       externalTriggers_.erase(remove(externalTriggers_.begin(), externalTriggers_.end(), 0), externalTriggers_.end() );
       iterators_to_remove.clear();
-      // std::cout << "externalTriggers_.size(): " << externalTriggers_.size() << std::endl;
       
       // If we have gone through all the trigger time stamps or stopped, we stop the while loop
       distance_too_big = true;
@@ -217,62 +192,42 @@ std::optional<cv::Mat> FrequencyCam::makeFrequencyAndEventImage(
       });
       if (it != eventTimesNs_.end()) {
         difference = (*it > sensor_time_) ? *it - sensor_time_ : sensor_time_ - *it;
-        trigger_time = sensor_time_;
-        event_time = *it;
       }
-    } else {
-      uint64_t min_difference = 1e6;
-      // for (const auto& trigger_time_i : externalTriggers_) {
-      for (auto trigger_it = externalTriggers_.begin(); trigger_it != externalTriggers_.end(); trigger_it++) {
-        it = std::min_element(eventTimesNs_.begin(), eventTimesNs_.end(), [&value = *trigger_it] (uint64_t a, uint64_t b) {
-              uint64_t diff_a =  (a > value) ? a - value : value - a;
-              uint64_t diff_b = (value > b) ? value - b : b - value;
-              return diff_a < diff_b;
-        });
-        if (it != eventTimesNs_.end()) {
-          difference = (*it > *trigger_it) ? *it - *trigger_it : *trigger_it - *it;
-          if (difference < min_difference) {
-            trigger_time = *trigger_it;
-            event_time = *it;
-            iterator_to_remove = trigger_it;
-            // std::cout << "event time: " << event_time << std::endl;
-            // std::cout << "trigger time: " << trigger_time << std::endl;
-            // // externalTriggers_.erase(it);
-            // std::cout << "difference: " << difference << std::endl;
-            min_difference = difference;
-          }
+
+      if (difference /*ns*/ < max_time_difference_us_to_trigger_ * 1e3) {
+        if (!hasValidTime_ && !externalTriggers_.empty() && iterator_to_remove != externalTriggers_.end()) {
+          externalTriggers_.erase(iterator_to_remove);
         }
-      }
-      difference = min_difference;
-    }
-    eventTimesNs_.clear();
+        hasValidTime_ = false;
+        nrSyncMatches_++;
 
-    if (difference < 500 * 1e3) {
-      // std::cout << "event time: " << event_time << std::endl;
-      // std::cout << "trigger time: " << trigger_time << std::endl;
-      // std::cout << "difference: " << difference << std::endl;
-      if (!hasValidTime_ && !externalTriggers_.empty() && iterator_to_remove != externalTriggers_.end()) {
-        externalTriggers_.erase(iterator_to_remove);
-        // std::cout << "externalTriggers_.size(): " << externalTriggers_.size() << std::endl;
+        if (overlayEvents) {
+          *evImg = cv::Mat::zeros(height_, width_, CV_8UC1);
+        }
+        if (useLogFrequency) {
+          result.emplace_back(
+            overlayEvents ? makeTransformedFrequencyImage<LogTF, EventFrameUpdater>(evImg, dt)
+                          : makeTransformedFrequencyImage<LogTF, NoEventFrameUpdater>(evImg, dt));
+        } else {
+          result.emplace_back(
+            overlayEvents ? makeTransformedFrequencyImage<NoTF, EventFrameUpdater>(evImg, dt)
+                          : makeTransformedFrequencyImage<NoTF, NoEventFrameUpdater>(evImg, dt));
+        }
+      } else {
+        distance_too_big = true;
       }
-      hasValidTime_ = false;
-      // eventTimesNs_.clear();
-      nrSyncMatches_++;
-
-      if (overlayEvents) {
-        *evImg = cv::Mat::zeros(height_, width_, CV_8UC1);
-      }
-      if (useLogFrequency) {
-        return (
-          overlayEvents ? makeTransformedFrequencyImage<LogTF, EventFrameUpdater>(evImg, dt, trigger_time)
-                        : makeTransformedFrequencyImage<LogTF, NoEventFrameUpdater>(evImg, dt, trigger_time));
-      }
-      return (
-        overlayEvents ? makeTransformedFrequencyImage<NoTF, EventFrameUpdater>(evImg, dt, trigger_time)
-                      : makeTransformedFrequencyImage<NoTF, NoEventFrameUpdater>(evImg, dt, trigger_time));
     }
+    iteration++;
   }
-  return {};
+
+  // Clear all the event time stamps
+  eventTimesNs_.clear();
+
+  if (result.empty()) {
+    return {};
+  } else {
+    return result;
+  }
 }
 
 void FrequencyCam::getStatistics(size_t * numEvents) const { *numEvents = eventCount_; }
@@ -292,9 +247,6 @@ void FrequencyCam::setTriggers(const std::string & triggers_file) {
     uint64_t time_stamp = std::stoi(line);
     externalTriggers_.emplace_back(time_stamp * 1000);
   }
-  // for (const auto& element: externalTriggers_) {
-  //   std::cout << "Trigger time stamp: " << element << std::endl;
-  // }
 
 }
 

@@ -39,10 +39,7 @@ int roundUp(const int numToRound, const int multiple);
 class FrequencyCam : public event_array_codecs::EventProcessor
 {
 public:
-  FrequencyCam(const bool use_external_triggers = false,
-               const uint64_t max_time_difference_to_trigger_ = 0)
-  : use_external_triggers_{use_external_triggers},
-    max_time_difference_to_trigger_{max_time_difference_to_trigger} {}
+  FrequencyCam() = default;
   ~FrequencyCam();
 
   FrequencyCam(const FrequencyCam &) = delete;
@@ -108,12 +105,13 @@ public:
 
   bool initialize(
     double minFreq, double maxFreq, double cutoffPeriod, int timeoutCycles, uint16_t debugX,
-    uint16_t debugY);
+    uint16_t debugY, const bool use_external_triggers = false,
+    const uint64_t max_time_difference_us_to_trigger = 0);
 
   void initializeState(uint32_t width, uint32_t height, uint64_t t_first, uint64_t t_off);
 
   // returns frequency image
-  std::optional<cv::Mat> makeFrequencyAndEventImage(
+  std::optional<std::vector<cv::Mat>> makeFrequencyAndEventImage(
     cv::Mat * eventImage, bool overlayEvents, bool useLogFrequency, float dt);
 
   void getStatistics(size_t * numEvents) const;
@@ -324,7 +322,7 @@ private:
   bool fix_time_stamps_{false}; 
 
   bool use_external_triggers_;
-  uint64_t max_time_difference_to_trigger_;
+  uint64_t max_time_difference_us_to_trigger_;
 };
 std::ostream & operator<<(std::ostream & os, const FrequencyCam::Event & e);
 }  // namespace frequency_cam

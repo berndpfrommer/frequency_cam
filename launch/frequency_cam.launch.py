@@ -49,6 +49,8 @@ def launch_setup(context, *args, **kwargs):
              #'bag_file': LaunchConfig('bag').perform(context),
              'bag_file': '2023-05-10_wand_0-dvs1',
              'trigger_file': '2023-05-10_wand_0_triggers.txt',
+             'use_external_triggers': True,
+             'max_time_difference_us_to_trigger': 1000,
              # 'trigger_file': 'triggers.txt',
              'publishing_frequency': 25.0}],
         remappings=[

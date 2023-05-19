@@ -71,12 +71,15 @@ bool FrequencyCamROS::initialize()
     declare_parameter<std::vector<double>>("legend_frequencies", std::vector<double>()));
   imageMaker_.setLegendNumBins(declare_parameter<int>("legend_num_bins", 11));
   imageMaker_.setNumSigDigits(declare_parameter<int>("legend_num_sig_digits", 3));
+  bool use_external_triggers = static_cast<bool>(declare_parameter<bool>("use_external_triggers", false));
+  uint64_t max_time_difference_us_to_trigger = static_cast<uint64_t>(declare_parameter<int64>("max_time_difference_us_to_trigger", 1000));
   cam_.initialize(
     minFreq, maxFreq, declare_parameter<double>("cutoff_period", 5.0),
-    declare_parameter<int>("num_timeout_cycles", 2.0), debugX_, debugY_);
+    declare_parameter<int>("num_timeout_cycles", 2.0), debugX_, debugY_,
+    use_external_triggers, max_time_difference_us_to_trigger);
 
   const std::string bag = this->declare_parameter<std::string>("bag_file", "");
-  const std::string trigger = this->declare_parameter<std::string>("trigger_file", "");
+  const std::string trigger_file = this->declare_parameter<std::string>("trigger_file", "");
   if (bag.empty()) {
     // start statistics timer only when not playing from bag
     statsTimer_ = rclcpp::create_timer(
@@ -94,7 +97,7 @@ bool FrequencyCamROS::initialize()
       "~/events", qos, std::bind(&FrequencyCamROS::eventMsg, this, std::placeholders::_1));
   } else {
     // reading from bag is only for debugging
-    playEventsFromBag(bag, declare_parameter<std::string>("bag_topic", "/event_camera/events"), trigger);
+    playEventsFromBag(bag, declare_parameter<std::string>("bag_topic", "/event_camera/events"), trigger_file);
   }
   return (true);
 }
@@ -131,13 +134,15 @@ void FrequencyCamROS::playEventsFromBag(const std::string & bagName, const std::
         cv::Mat eventImg;
         if (auto freqImg = cam_.makeFrequencyAndEventImage(
           &eventImg, overlayEvents_, useLogFrequency_, eventImageDt_)) {
-          const cv::Mat window =
-            imageMaker_.make((lastFrameTime + delta_t).nanoseconds(), *freqImg, eventImg);
-          lastFrameTime = lastFrameTime + delta_t;
-          char fname[256];
-          snprintf(fname, sizeof(fname) - 1, "/frame_%05u.jpg", frameCount);
-          cv::imwrite(path + fname, window);
-          frameCount++;
+          for (const auto& img : *freqImg) {
+            const cv::Mat window =
+              imageMaker_.make((lastFrameTime + delta_t).nanoseconds(), img, eventImg);
+            lastFrameTime = lastFrameTime + delta_t;
+            char fname[256];
+            snprintf(fname, sizeof(fname) - 1, "/frame_%05u.jpg", frameCount);
+            cv::imwrite(path + fname, window);
+            frameCount++;
+          }
         }
       // }
       // }
@@ -197,9 +202,11 @@ void FrequencyCamROS::frameTimerExpired()
     cv::Mat eventImg;
     if (auto freqImg =
       cam_.makeFrequencyAndEventImage(&eventImg, overlayEvents_, useLogFrequency_, eventImageDt_)) {
-      const cv::Mat window =
-        imageMaker_.make(this->get_clock()->now().nanoseconds(), *freqImg, eventImg);
-      imagePub_.publish(cv_bridge::CvImage(header_, "bgr8", window).toImageMsg());
+      for (const auto& img : *freqImg) {
+        const cv::Mat window =
+          imageMaker_.make(this->get_clock()->now().nanoseconds(), img, eventImg);
+        imagePub_.publish(cv_bridge::CvImage(header_, "bgr8", window).toImageMsg());
+      }
     }
   }
 }
