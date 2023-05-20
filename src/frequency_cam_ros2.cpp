@@ -71,16 +71,13 @@ bool FrequencyCamROS::initialize()
     declare_parameter<std::vector<double>>("legend_frequencies", std::vector<double>()));
   imageMaker_.setLegendNumBins(declare_parameter<int>("legend_num_bins", 11));
   imageMaker_.setNumSigDigits(declare_parameter<int>("legend_num_sig_digits", 3));
-  bool use_external_triggers =
+  use_external_triggers_ =
     static_cast<bool>(declare_parameter<bool>("use_external_triggers", false));
-  std::cout << "use_external_triggers: " << use_external_triggers << std::endl;
   uint64_t max_time_difference_us_to_trigger =
     static_cast<uint64_t>(declare_parameter<int64>("max_time_difference_us_to_trigger", 1000));
-  std::cout << "max_time_difference_us_to_trigger: " << max_time_difference_us_to_trigger
-            << std::endl;
   cam_.initialize(
     minFreq, maxFreq, declare_parameter<double>("cutoff_period", 5.0),
-    declare_parameter<int>("num_timeout_cycles", 2.0), debugX_, debugY_, use_external_triggers,
+    declare_parameter<int>("num_timeout_cycles", 2.0), debugX_, debugY_, use_external_triggers_,
     max_time_difference_us_to_trigger);
 
   const std::string bag = this->declare_parameter<std::string>("bag_file", "");

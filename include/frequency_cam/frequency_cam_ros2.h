@@ -60,6 +60,7 @@ private:
   bool useLogFrequency_{false};
   FrequencyCam cam_;
   ImageMaker imageMaker_;
+  bool use_external_triggers_;
   // --- statistics
   uint64_t totTime_{0};
   uint64_t msgCount_{0};
