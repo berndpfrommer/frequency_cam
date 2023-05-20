@@ -114,7 +114,7 @@ void FrequencyCamROS::playEventsFromBag(
   reader.open(bagName);
   rclcpp::Serialization<EventArray> serialization;
   const auto delta_t = rclcpp::Duration::from_seconds(eventImageDt_);
-  // bool hasValidTime = false;
+  bool hasValidTime = false;
   uint32_t frameCount(0);
   const std::string path = this->declare_parameter<std::string>("path", "./frames");
   std::filesystem::create_directories(path);
@@ -132,29 +132,41 @@ void FrequencyCamROS::playEventsFromBag(
     EventArray::SharedPtr msg(new EventArray());
     serialization.deserialize_message(&serializedMsg, &(*msg));
     if (msg) {
-      // const rclcpp::Time t(msg->header.stamp);
+      const rclcpp::Time t(msg->header.stamp);
       eventMsg(msg);
-      // if (t - lastFrameTime > delta_t) {
+
       cv::Mat eventImg;
-      if (
-        auto freqImg = cam_.makeFrequencyAndEventImage(
+      if (use_external_triggers_) {
+        if (auto freqImg = cam_.makeFrequencyAndEventImage(
           &eventImg, overlayEvents_, useLogFrequency_, eventImageDt_)) {
-        for (const auto & img : *freqImg) {
-          const cv::Mat window =
-            imageMaker_.make((lastFrameTime + delta_t).nanoseconds(), img, eventImg);
-          lastFrameTime = lastFrameTime + delta_t;
-          char fname[256];
-          snprintf(fname, sizeof(fname) - 1, "/frame_%05u.jpg", frameCount);
-          cv::imwrite(path + fname, window);
-          frameCount++;
+          for (const auto & img : *freqImg) {
+            const cv::Mat window =
+              imageMaker_.make((lastFrameTime + delta_t).nanoseconds(), img, eventImg);
+            lastFrameTime = lastFrameTime + delta_t;
+            char fname[256];
+            snprintf(fname, sizeof(fname) - 1, "/frame_%05u.jpg", frameCount);
+            cv::imwrite(path + fname, window);
+            frameCount++;
+          }
         }
+      } else if (hasValidTime) {
+        if (t - lastFrameTime > delta_t) {
+          cv::Mat eventImg;
+          if (auto freqImg = cam_.makeFrequencyAndEventImage(
+            &eventImg, overlayEvents_, useLogFrequency_, eventImageDt_)) {
+            const cv::Mat window =
+              imageMaker_.make((lastFrameTime + delta_t).nanoseconds(), (*freqImg).back(), eventImg);
+            lastFrameTime = lastFrameTime + delta_t;
+            char fname[256];
+            snprintf(fname, sizeof(fname) - 1, "/frame_%05u.jpg", frameCount);
+            cv::imwrite(path + fname, window);
+            frameCount++;
+          }
+        }
+      } else {
+        hasValidTime = true;
+        lastFrameTime = t;
       }
-      // }
-      // }
-      // else {
-      //   hasValidTime = true;
-      //   lastFrameTime = t;
-      // }
     } else {
       RCLCPP_WARN(get_logger(), "skipped invalid message type in bag!");
     }

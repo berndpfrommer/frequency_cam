@@ -177,7 +177,7 @@ std::optional<std::vector<cv::Mat>> FrequencyCam::makeFrequencyAndEventImage(
       distance_too_big = true;
     }
     // We are using the received trigger time stamps
-    else {
+    else if (hasValidTime_) {
       // Get the smallest difference
       auto it = std::min_element(
         eventTimesNs_.begin(), eventTimesNs_.end(),
@@ -214,6 +214,20 @@ std::optional<std::vector<cv::Mat>> FrequencyCam::makeFrequencyAndEventImage(
       } else {
         distance_too_big = true;
       }
+    } else {
+      if (overlayEvents) {
+        *evImg = cv::Mat::zeros(height_, width_, CV_8UC1);
+      }
+      if (useLogFrequency) {
+        result.emplace_back(
+          overlayEvents ? makeTransformedFrequencyImage<LogTF, EventFrameUpdater>(evImg, dt)
+                        : makeTransformedFrequencyImage<LogTF, NoEventFrameUpdater>(evImg, dt));
+      } else {
+        result.emplace_back(
+          overlayEvents ? makeTransformedFrequencyImage<NoTF, EventFrameUpdater>(evImg, dt)
+                        : makeTransformedFrequencyImage<NoTF, NoEventFrameUpdater>(evImg, dt));
+      }
+      distance_too_big = true;
     }
     iteration++;
   }
