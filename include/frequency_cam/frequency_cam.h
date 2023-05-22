@@ -31,7 +31,7 @@ namespace frequency_cam
 class FrequencyCam : public event_array_codecs::EventProcessor
 {
 public:
-  FrequencyCam() {};
+  FrequencyCam() {}
   ~FrequencyCam();
 
   FrequencyCam(const FrequencyCam &) = delete;
