@@ -13,25 +13,11 @@ on:
     branches: [ master]
 
 jobs:
-  build_focal_ros2:
+  build_focal_noetic:
     runs-on: ubuntu-20.04
+    name: focal/noetic (x86_64)
     container:
-      image: berndpfrommer/focal_noetic_galactic_metavision
-    name: build under ROS2 on focal (x86_64)
-    steps:
-      - name: check out github repo
-        uses: actions/checkout@v3
-        with:
-          path: src/${{ env.PACKAGE }}
-          fetch-depth: 0
-      - name: compile from source
-        run: ./src/${{ env.PACKAGE }}/.github/scripts/build_ros2.bash ${{ env.PACKAGE }}
-
-  build_focal_ros1:
-    runs-on: ubuntu-20.04
-    name: build under ROS1 noetic on focal (x86_64)
-    container:
-      image: berndpfrommer/focal_noetic_galactic_metavision
+      image: berndpfrommer/focal_noetic
     steps:
       - name: check out github repo
         uses: actions/checkout@v3
@@ -41,19 +27,30 @@ jobs:
       - name: compile from source
         run: ./src/${{ env.PACKAGE }}/.github/scripts/build_ros1.bash ${{ env.PACKAGE }}
 
-  build_jetson_bionic_noetic:
-    runs-on: ubuntu-18.04
-    name: build under ROS1 noetic on bionic (jetson armv7).
+  build_focal_galactic:
+    runs-on: ubuntu-20.04
+    container:
+      image: berndpfrommer/focal_galactic
+    name: focal/galactic (x86_64)
     steps:
-      - uses: actions/checkout@v3
-        name: check out github repo
+      - name: check out github repo
+        uses: actions/checkout@v3
         with:
           path: src/${{ env.PACKAGE }}
           fetch-depth: 0
-      - uses: berndpfrommer/run-on-arch-action@master
-        name: compile from source
+      - name: compile from source
+        run: ./src/${{ env.PACKAGE }}/.github/scripts/build_ros2.bash ${{ env.PACKAGE }}
+
+  build_jammy_humble:
+    runs-on: ubuntu-22.04
+    container:
+      image: berndpfrommer/jammy_humble
+    name: jammy/humble (x86_64)
+    steps:
+      - name: check out github repo
+        uses: actions/checkout@v3
         with:
-          arch: jetson_r34
-          distro: noetic_metavision
-          run:  |
-            ./src/${{ env.PACKAGE }}/.github/scripts/build_ros1.bash ${{ env.PACKAGE }}
+          path: src/${{ env.PACKAGE }}
+          fetch-depth: 0
+      - name: compile from source
+        run: ./src/${{ env.PACKAGE }}/.github/scripts/build_ros2.bash ${{ env.PACKAGE }}

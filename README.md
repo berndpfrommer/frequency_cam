@@ -26,17 +26,16 @@ Here are a few videos of FrequencyCam in action:
 Currently tested on Ubuntu 20.04 under ROS2 Galactic.
 
 ## How to build
-Create a workspace (``~/ws``), clone this repo, and use ``wstool``
+Create a workspace (``~/ws``), clone this repo, and use ``vcs``
 to pull in the remaining dependencies:
-
 ```
-mkdir -p ~/ws/src
-cd ~/ws
-git clone https://github.com/berndpfrommer/frequency_cam.git src/frequency_cam
-wstool init src src/frequency_cam/frequency_cam.rosinstall
-# to update an existing space:
-# wstool merge -t src src/frequency_cam/frequency_cam.rosinstall
-# wstool update -t src
+pkg=frequenc_cam
+mkdir -p ~/${pkg}_ws/src
+cd ~/${pkg}_ws
+git clone https://github.com/berndpfrommer/${pkg}.git src/${pkg}
+cd src
+vcs import < ${pkg}/${pkg}.repos
+cd ..
 ```
 
 The build procedure is standard for ROS1 (catkin) and ROS2, so here is
