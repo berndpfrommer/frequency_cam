@@ -24,8 +24,6 @@ find_package(ament_cmake_ros REQUIRED)
 
 find_package(OpenCV REQUIRED)
 
-find_package(Eigen3 REQUIRED NO_MODULE) 
-
 set(ROS2_DEPENDENCIES
   "rclcpp"
   "rclcpp_components"

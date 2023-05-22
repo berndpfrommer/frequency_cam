@@ -18,28 +18,20 @@
 
 #include <event_array_codecs/event_processor.h>
 
-#include <atomic>
 #include <cstdint>
-#include <eigen3/Eigen/Dense>
 #include <fstream>
 #include <iostream>
-#include <map>
-#include <numeric>
 #include <opencv2/core/core.hpp>
-#include <opencv2/imgproc.hpp>
 #include <optional>
 
 // #define DEBUG
 
 namespace frequency_cam
 {
-
-int roundUp(const int numToRound, const int multiple);
-
 class FrequencyCam : public event_array_codecs::EventProcessor
 {
 public:
-  FrequencyCam() = default;
+  FrequencyCam() {};
   ~FrequencyCam();
 
   FrequencyCam(const FrequencyCam &) = delete;
