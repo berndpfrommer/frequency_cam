@@ -162,7 +162,7 @@ def mv_write_image_cb(ts, freq_map_orig):
     if labels is not None:
         legend = make_legend(
             res, patch_height, text_height,
-            [f"{int(round(l)):d}" for l in labels],
+            [f"{int(round(a)):d}" for a in labels],
             labels, use_log_scale)
         img[res[1]:(res[1] + legend_height), :] = legend
     # feed accumulated events into frequency cam algo
