@@ -15,8 +15,10 @@ do
     fi
 done
 
-# run wstool to bring in the additional repositories required
-wstool init src ./src/${pkg}/${pkg}.rosinstall
+# run vcs tool to bring in the additional repositories required
+cd src
+vcs import < ${pkg}/${pkg}.repos
+cd ..
 
 # build
 catkin config -DCMAKE_BUILD_TYPE=RelWithDebInfo

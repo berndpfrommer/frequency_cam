@@ -15,8 +15,10 @@ done
 
 echo "found ros version: ${ROS_VERSION} distro: ${ROS_DISTRO}"
 
-# run wstool to bring in the additional repositories required
-wstool init src ./src/${pkg}/${pkg}.rosinstall
+# run vcs tool to bring in the additional repositories required
+cd src
+vcs import < ${pkg}/${pkg}.repos
+cd ..
 
 # build and test
 colcon build --symlink-install --cmake-args -DCMAKE_BUILD_TYPE=RelWithDebInfo && colcon test && colcon test-result --verbose
