@@ -174,7 +174,13 @@ void FrequencyCamROS::playEventsFromBag(
   // event count
   size_t numEvents;
   cam_.getStatistics(&numEvents);
+  size_t nrExternalTriggers;
+  cam_.getNrExternalTriggers(&nrExternalTriggers);
+  size_t nrSyncMatches;
+  cam_.getNrSyncMatches(&nrSyncMatches);
   RCLCPP_INFO_STREAM(get_logger(), "played bag at rate: " << (numEvents / totTime_) << " Mev/s");
+  RCLCPP_INFO_STREAM(get_logger(), "Number of external triggers: " << nrExternalTriggers);
+  RCLCPP_INFO_STREAM(get_logger(), "Number of time synchronization matches: " << nrSyncMatches);
   rclcpp::shutdown();
 }
 

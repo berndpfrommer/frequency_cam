@@ -27,9 +27,6 @@ namespace frequency_cam
 FrequencyCam::~FrequencyCam()
 {
   delete[] state_;
-
-  std::cout << "Number of external triggers: " << nrExtTriggers_ << std::endl;
-  std::cout << "Number of time synchronization matches: " << nrSyncMatches_ << std::endl;
 }
 
 static void compute_alpha_beta(const double T_cut, double * alpha, double * beta)
@@ -245,6 +242,10 @@ std::optional<std::vector<cv::Mat>> FrequencyCam::makeFrequencyAndEventImage(
 void FrequencyCam::getStatistics(size_t * numEvents) const { *numEvents = eventCount_; }
 
 void FrequencyCam::resetStatistics() { eventCount_ = 0; }
+
+void FrequencyCam::getNrExternalTriggers(size_t * nrExternalTriggers) const { *nrExternalTriggers = nrExtTriggers_; }
+
+void FrequencyCam::getNrSyncMatches(size_t * nrSyncMatches) const { *nrSyncMatches = nrSyncMatches_; }
 
 void FrequencyCam::setTriggers(const std::string & triggers_file)
 {

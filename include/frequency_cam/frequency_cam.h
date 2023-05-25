@@ -110,6 +110,10 @@ public:
   void getStatistics(size_t * numEvents) const;
   void resetStatistics();
 
+  void getNrExternalTriggers(size_t * nrExternalTriggers) const;
+
+  void getNrSyncMatches(size_t * nrSyncMatches) const;
+
   void setTriggers(const std::string & triggers_file);
 
 private:
