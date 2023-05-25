@@ -42,8 +42,10 @@ private:
   void frameTimerExpired();
   void statisticsTimerExpired();
   bool initialize();
+  void setTriggers(const std::string & triggers_file);
   void eventMsg(const EventArray::ConstSharedPtr msg);
-  void playEventsFromBag(const std::string & bagName, const std::string & bagTopic, const std::string & trigger_file);
+  void playEventsFromBag(const std::string & bagName, const std::string & bagTopic);
+  void playEventsFromBagFrameBased(const std::string & bagName, const std::string & bagTopic, const std::string & triggers_file);
   // ------ variables ----
   rclcpp::Time lastPubTime_{0};
   rclcpp::Subscription<EventArray>::SharedPtr eventSub_;
@@ -61,6 +63,7 @@ private:
   FrequencyCam cam_;
   ImageMaker imageMaker_;
   bool use_external_triggers_;
+  std::vector<uint64_t> externalTriggers_;
   // --- statistics
   uint64_t totTime_{0};
   uint64_t msgCount_{0};

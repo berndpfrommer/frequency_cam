@@ -104,7 +104,7 @@ public:
   void initializeState(uint32_t width, uint32_t height, uint64_t t_first, uint64_t t_off);
 
   // returns frequency image
-  std::optional<std::vector<cv::Mat>> makeFrequencyAndEventImage(
+  cv::Mat makeFrequencyAndEventImage(
     cv::Mat * eventImage, bool overlayEvents, bool useLogFrequency, float dt);
 
   void getStatistics(size_t * numEvents) const;
@@ -113,8 +113,6 @@ public:
   void getNrExternalTriggers(size_t * nrExternalTriggers) const;
 
   void getNrSyncMatches(size_t * nrSyncMatches) const;
-
-  void setTriggers(const std::string & triggers_file);
 
 private:
   struct Event  // event representation for convenience

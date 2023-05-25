@@ -43,6 +43,22 @@ FrequencyCamROS::FrequencyCamROS(const rclcpp::NodeOptions & options)
   }
 }
 
+void FrequencyCamROS::setTriggers(const std::string & triggers_file)
+{
+  std::string line;
+  std::ifstream myfile;
+  myfile.open(triggers_file);
+
+  if (!myfile.is_open()) {
+    std::cerr << "Error open" << std::endl;
+  }
+
+  while (getline(myfile, line)) {
+    uint64_t time_stamp = std::stoi(line);
+    externalTriggers_.emplace_back(time_stamp * 1000);
+  }
+}
+
 bool FrequencyCamROS::initialize()
 {
   const double fps = std::max(declare_parameter<double>("publishing_frequency", 20.0), 1.0);
@@ -73,6 +89,7 @@ bool FrequencyCamROS::initialize()
   imageMaker_.setNumSigDigits(declare_parameter<int>("legend_num_sig_digits", 3));
   use_external_triggers_ =
     static_cast<bool>(declare_parameter<bool>("use_external_triggers", false));
+
   uint64_t max_time_difference_us_to_trigger =
     static_cast<uint64_t>(declare_parameter<int64>("max_time_difference_us_to_trigger", 1000));
   cam_.initialize(
@@ -97,16 +114,19 @@ bool FrequencyCamROS::initialize()
 
     eventSub_ = this->create_subscription<EventArray>(
       "~/events", qos, std::bind(&FrequencyCamROS::eventMsg, this, std::placeholders::_1));
+  } else if (use_external_triggers_ && !trigger_file.empty()) {
+    playEventsFromBagFrameBased(
+      bag, declare_parameter<std::string>("bag_topic", "/event_camera/events"), trigger_file);
   } else {
     // reading from bag is only for debugging
     playEventsFromBag(
-      bag, declare_parameter<std::string>("bag_topic", "/event_camera/events"), trigger_file);
+      bag, declare_parameter<std::string>("bag_topic", "/event_camera/events"));
   }
   return (true);
 }
 
 void FrequencyCamROS::playEventsFromBag(
-  const std::string & bagName, const std::string & bagTopic, const std::string & trigger_file)
+  const std::string & bagName, const std::string & bagTopic)
 {
   imageMaker_.setScale(this->declare_parameter<double>("scale_image", 1.0));
   rclcpp::Time lastFrameTime(0);
@@ -119,10 +139,6 @@ void FrequencyCamROS::playEventsFromBag(
   const std::string path = this->declare_parameter<std::string>("path", "./frames");
   std::filesystem::create_directories(path);
 
-  if (!trigger_file.empty()) {
-    cam_.setTriggers(trigger_file);
-  }
-
   while (reader.has_next()) {
     auto bagmsg = reader.read_next();
     rclcpp::SerializedMessage serializedMsg(*bagmsg->serialized_data);
@@ -134,39 +150,86 @@ void FrequencyCamROS::playEventsFromBag(
     if (msg) {
       const rclcpp::Time t(msg->header.stamp);
       eventMsg(msg);
+      auto decoder = decoderFactory_.getInstance(msg->encoding, msg->width, msg->height);
+      decoder->decode(msg->events.data(), msg->events.size(), &cam_);
 
       cv::Mat eventImg;
-      if (use_external_triggers_) {
-        if (auto freqImg = cam_.makeFrequencyAndEventImage(
-          &eventImg, overlayEvents_, useLogFrequency_, eventImageDt_)) {
-          for (const auto & img : *freqImg) {
-            const cv::Mat window =
-              imageMaker_.make((lastFrameTime + delta_t).nanoseconds(), img, eventImg);
-            lastFrameTime = lastFrameTime + delta_t;
-            char fname[256];
-            snprintf(fname, sizeof(fname) - 1, "/frame_%05u.jpg", frameCount);
-            cv::imwrite(path + fname, window);
-            frameCount++;
-          }
-        }
-      } else if (hasValidTime) {
+      if (hasValidTime) {
         if (t - lastFrameTime > delta_t) {
           cv::Mat eventImg;
-          if (auto freqImg = cam_.makeFrequencyAndEventImage(
-            &eventImg, overlayEvents_, useLogFrequency_, eventImageDt_)) {
-            const cv::Mat window =
-              imageMaker_.make((lastFrameTime + delta_t).nanoseconds(), (*freqImg).back(), eventImg);
-            lastFrameTime = lastFrameTime + delta_t;
-            char fname[256];
-            snprintf(fname, sizeof(fname) - 1, "/frame_%05u.jpg", frameCount);
-            cv::imwrite(path + fname, window);
-            frameCount++;
-          }
+          auto freqImg = cam_.makeFrequencyAndEventImage(
+            &eventImg, overlayEvents_, useLogFrequency_, eventImageDt_);
+          const cv::Mat window =
+            imageMaker_.make((lastFrameTime + delta_t).nanoseconds(), freqImg, eventImg);
+          lastFrameTime = lastFrameTime + delta_t;
+          char fname[256];
+          snprintf(fname, sizeof(fname) - 1, "/frame_%05u.jpg", frameCount);
+          cv::imwrite(path + fname, window);
+          frameCount++;
         }
       } else {
         hasValidTime = true;
         lastFrameTime = t;
       }
+    } else {
+      RCLCPP_WARN(get_logger(), "skipped invalid message type in bag!");
+    }
+  }
+  // event count
+  size_t numEvents;
+  cam_.getStatistics(&numEvents);
+  RCLCPP_INFO_STREAM(get_logger(), "played bag at rate: " << (numEvents / totTime_) << " Mev/s");
+  rclcpp::shutdown();
+}
+
+void FrequencyCamROS::playEventsFromBagFrameBased(
+  const std::string & bagName, const std::string & bagTopic, const std::string & triggers_file)
+{
+  imageMaker_.setScale(this->declare_parameter<double>("scale_image", 1.0));
+  rclcpp::Time lastFrameTime(0);
+  rosbag2_cpp::Reader reader;
+  reader.open(bagName);
+  rclcpp::Serialization<EventArray> serialization;
+  const auto delta_t = rclcpp::Duration::from_seconds(eventImageDt_);
+  uint32_t frameCount(0);
+  const std::string path = this->declare_parameter<std::string>("path", "./frames");
+  std::filesystem::create_directories(path);
+
+  setTriggers(triggers_file);
+
+  uint64_t timeLimit = 0;
+
+  std::size_t triggerIndex = 0;
+  while (reader.has_next()) {
+    auto bagmsg = reader.read_next();
+    rclcpp::SerializedMessage serializedMsg(*bagmsg->serialized_data);
+    if (bagmsg->topic_name != bagTopic) {
+      continue;
+    }
+    EventArray::SharedPtr msg(new EventArray());
+    serialization.deserialize_message(&serializedMsg, &(*msg));
+    if (msg) {
+      const rclcpp::Time t(msg->header.stamp);
+      eventMsg(msg);
+      auto decoder = decoderFactory_.getInstance(msg->encoding, msg->width, msg->height);
+      timeLimit = externalTriggers_.at(triggerIndex++);
+      size_t numConsumed = decoder->decodeUntil(
+        msg->events.data(), msg->events.size(), &cam_, timeLimit, nullptr /*uint64_t * nextTime*/);
+
+      if (numConsumed < msg->events.size()) {
+        std::cerr << "There are more events to be processed" << std::endl;
+      }
+
+      cv::Mat eventImg;
+      auto freqImg = cam_.makeFrequencyAndEventImage(
+        &eventImg, overlayEvents_, useLogFrequency_, eventImageDt_); 
+      const cv::Mat window =
+        imageMaker_.make((lastFrameTime + delta_t).nanoseconds(), freqImg, eventImg);
+      lastFrameTime = lastFrameTime + delta_t;
+      char fname[256];
+      snprintf(fname, sizeof(fname) - 1, "/frame_%05u.jpg", frameCount);
+      cv::imwrite(path + fname, window);
+      frameCount++;
     } else {
       RCLCPP_WARN(get_logger(), "skipped invalid message type in bag!");
     }
@@ -211,7 +274,7 @@ void FrequencyCamROS::eventMsg(EventArray::ConstSharedPtr msg)
     cam_.initializeState(width_, height_, t, t_off);
   }
   // decode will produce callbacks to cam_
-  decoder->decode(msg->events.data(), msg->events.size(), &cam_);
+  // decoder->decode(msg->events.data(), msg->events.size(), &cam_);
   msgCount_++;
   droppedSeq_ += static_cast<int64_t>(msg->seq) - lastSeq_ - 1;
   lastSeq_ = static_cast<int64_t>(msg->seq);
@@ -223,15 +286,11 @@ void FrequencyCamROS::frameTimerExpired()
 {
   if (imagePub_.getNumSubscribers() != 0 && height_ != 0) {
     cv::Mat eventImg;
-    if (
-      auto freqImg = cam_.makeFrequencyAndEventImage(
-        &eventImg, overlayEvents_, useLogFrequency_, eventImageDt_)) {
-      for (const auto & img : *freqImg) {
-        const cv::Mat window =
-          imageMaker_.make(this->get_clock()->now().nanoseconds(), img, eventImg);
-        imagePub_.publish(cv_bridge::CvImage(header_, "bgr8", window).toImageMsg());
-      }
-    }
+    auto freqImg = cam_.makeFrequencyAndEventImage(
+        &eventImg, overlayEvents_, useLogFrequency_, eventImageDt_);
+      const cv::Mat window =
+        imageMaker_.make(this->get_clock()->now().nanoseconds(), freqImg, eventImg);
+      imagePub_.publish(cv_bridge::CvImage(header_, "bgr8", window).toImageMsg());
   }
 }
 
