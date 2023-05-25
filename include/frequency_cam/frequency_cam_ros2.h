@@ -20,6 +20,7 @@
 
 #include <event_array_msgs/msg/event_array.hpp>
 #include <image_transport/image_transport.hpp>
+#include <queue>
 #include <rclcpp/rclcpp.hpp>
 #include <sensor_msgs/msg/image.hpp>
 #include <std_msgs/msg/header.hpp>
@@ -44,6 +45,8 @@ private:
   bool initialize();
   void eventMsg(const EventArray::ConstSharedPtr msg);
   void playEventsFromBag(const std::string & bagName, const std::string & bagTopic);
+  void makeAndWriteFrame(uint64_t debugTime, const std::string & path, uint32_t frameCount);
+  void readFrameTimes();
   // ------ variables ----
   rclcpp::Time lastPubTime_{0};
   rclcpp::Subscription<EventArray>::SharedPtr eventSub_;
@@ -52,6 +55,7 @@ private:
   image_transport::Publisher imagePub_;
   event_array_codecs::DecoderFactory<FrequencyCam> decoderFactory_;
   std_msgs::msg::Header header_;
+  std::queue<uint64_t> frameTimes_;
 
   uint32_t width_{0};          // image width
   uint32_t height_{0};         // image height
