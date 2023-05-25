@@ -18,6 +18,7 @@
 
 #include <event_array_codecs/event_processor.h>
 
+#include <atomic>
 #include <cstdint>
 #include <fstream>
 #include <iostream>
@@ -41,13 +42,13 @@ public:
   inline void eventCD(uint64_t sensor_time, uint16_t ex, uint16_t ey, uint8_t polarity) override
   {
     // If the first time stamp is > 15s, there is an offset which we subtract every time.
-    if (!initialize_time_stamps_) {
-      initialize_time_stamps_ = true;
+    if (!initializeTimeStamps_) {
+      initializeTimeStamps_ = true;
       if (sensor_time > 15000000000) {
-        fix_time_stamps_ = true;
+        fixTimeStamps_ = true;
       }
     }
-    if (fix_time_stamps_) {
+    if (fixTimeStamps_) {
       // Offset taken from:
       // https://docs.prophesee.ai/stable/data/encoding_formats/evt3.html#evt-time-high
       sensor_time -= 16777215000;
@@ -62,13 +63,13 @@ public:
   void eventExtTrigger(uint64_t sensor_time, uint8_t edge, uint8_t /*id*/) override
   {
     // If the first time stamp is > 15s, there is an offset which we subtract every time.
-    if (!initialize_time_stamps_) {
-      initialize_time_stamps_ = true;
+    if (!initializeTimeStamps_) {
+      initializeTimeStamps_ = true;
       if (sensor_time > 15000000000) {
-        fix_time_stamps_ = true;
+        fixTimeStamps_ = true;
       }
     }
-    if (fix_time_stamps_) {
+    if (fixTimeStamps_) {
       // Offset taken from:
       // https://docs.prophesee.ai/stable/data/encoding_formats/evt3.html#evt-time-high
       sensor_time -= 16777215000;
@@ -310,11 +311,11 @@ private:
 
   std::vector<uint64_t> externalTriggers_;
   uint64_t lastEventTimeNs_;
-  bool initialize_time_stamps_{false};
-  bool fix_time_stamps_{false};
+  bool initializeTimeStamps_{false};
+  bool fixTimeStamps_{false};
 
-  bool use_external_triggers_;
-  uint64_t max_time_difference_us_to_trigger_;
+  bool useExternalTriggers_;
+  uint64_t maxTimeDifferenceUsToTrigger_;
 };
 std::ostream & operator<<(std::ostream & os, const FrequencyCam::Event & e);
 }  // namespace frequency_cam

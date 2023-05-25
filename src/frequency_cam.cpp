@@ -69,8 +69,8 @@ bool FrequencyCam::initialize(
   debugX_ = debugX;
   debugY_ = debugY;
 
-  use_external_triggers_ = use_external_triggers;
-  max_time_difference_us_to_trigger_ = max_time_difference_us_to_trigger;
+  useExternalTriggers_ = use_external_triggers;
+  maxTimeDifferenceUsToTrigger_ = max_time_difference_us_to_trigger;
 
   return (true);
 }
@@ -108,8 +108,8 @@ std::optional<std::vector<cv::Mat>> FrequencyCam::makeFrequencyAndEventImage(
   // we loop until the temporal distance gets too big.
   std::size_t iteration = 0;
   while (!distance_too_big &&
-         ((use_external_triggers_ && (hasValidTime_ || !externalTriggers_.empty())) ||
-          !use_external_triggers_)) {
+         ((useExternalTriggers_ && (hasValidTime_ || !externalTriggers_.empty())) ||
+          !useExternalTriggers_)) {
     uint64_t difference = 1e9;
 
     std::vector<uint64_t>::iterator it = eventTimesNs_.end();
@@ -131,7 +131,7 @@ std::optional<std::vector<cv::Mat>> FrequencyCam::makeFrequencyAndEventImage(
         if (it != eventTimesNs_.end()) {
           difference = (*it > *trigger_it) ? *it - *trigger_it : *trigger_it - *it;
 
-          if (difference /*ns*/ < max_time_difference_us_to_trigger_ * 1e3) {
+          if (difference /*ns*/ < maxTimeDifferenceUsToTrigger_ * 1e3) {
             iterator_to_remove = trigger_it;
             iterators_to_remove.emplace_back(iterator_to_remove);
 
@@ -190,7 +190,7 @@ std::optional<std::vector<cv::Mat>> FrequencyCam::makeFrequencyAndEventImage(
         difference = (*it > sensor_time_) ? *it - sensor_time_ : sensor_time_ - *it;
       }
 
-      if (difference /*ns*/ < max_time_difference_us_to_trigger_ * 1e3) {
+      if (difference /*ns*/ < maxTimeDifferenceUsToTrigger_ * 1e3) {
         if (
           !hasValidTime_ && !externalTriggers_.empty() &&
           iterator_to_remove != externalTriggers_.end()) {
