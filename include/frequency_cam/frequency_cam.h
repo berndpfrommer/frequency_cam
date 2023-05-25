@@ -309,7 +309,6 @@ private:
   bool eventExtTriggerInitialized_{false};
   std::size_t nrExtTriggers_{0};
   std::size_t nrSyncMatches_{0};
-  std::size_t nrDetectedWands_{0};
   uint8_t lastExternalEdge_;
 
   std::vector<uint64_t> externalTriggers_;
