@@ -265,8 +265,7 @@ private:
           const double f = 1.0 / std::max(state.period, decltype(state.period)(1e-6));
           // filter out any pixels that have not been updated recently
           if (dt < maxDt * timeoutCycles_ && dt * f < timeoutCycles_) {
-            auto frequency = std::max(T::tf(f), minFreq);
-            rawImg.at<float>(iy, ix) = frequency;
+            rawImg.at<float>(iy, ix) = std::max(T::tf(f), minFreq);
           } else {
             rawImg.at<float>(iy, ix) = 0;  // mark as invalid
           }
