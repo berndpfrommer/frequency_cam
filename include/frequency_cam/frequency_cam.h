@@ -247,7 +247,7 @@ private:
   };
 
   template <class T, class U>
-  cv::Mat makeTransformedFrequencyImage(cv::Mat * eventFrame, float eventImageDt)
+  cv::Mat makeTransformedFrequencyImage(cv::Mat * eventFrame, float eventImageDt) const
   {
     cv::Mat rawImg(height_, width_, CV_32FC1, 0.0);
     const double maxDt = 1.0 / freq_[0] * timeoutCycles_;
