@@ -104,8 +104,8 @@ public:
   void initializeState(uint32_t width, uint32_t height, uint64_t t_first, uint64_t t_off);
 
   // returns frequency image
-  cv::Mat makeFrequencyAndEventImage(
-    cv::Mat * eventImage, bool overlayEvents, bool useLogFrequency, float dt);
+    std::optional<cv::Mat> makeFrequencyAndEventImage(
+    cv::Mat * eventImage, bool overlayEvents, bool useLogFrequency, float dt, uint64_t trigger_timestamp = 0);
 
   void getStatistics(size_t * numEvents) const;
   void resetStatistics();

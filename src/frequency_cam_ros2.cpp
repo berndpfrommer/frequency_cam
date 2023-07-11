@@ -157,15 +157,16 @@ void FrequencyCamROS::playEventsFromBag(
       if (hasValidTime) {
         if (t - lastFrameTime > delta_t) {
           cv::Mat eventImg;
-          auto freqImg = cam_.makeFrequencyAndEventImage(
-            &eventImg, overlayEvents_, useLogFrequency_, eventImageDt_);
-          const cv::Mat window =
-            imageMaker_.make((lastFrameTime + delta_t).nanoseconds(), freqImg, eventImg);
-          lastFrameTime = lastFrameTime + delta_t;
-          char fname[256];
-          snprintf(fname, sizeof(fname) - 1, "/frame_%05u.jpg", frameCount);
-          cv::imwrite(path + fname, window);
-          frameCount++;
+          if (auto freqImg = cam_.makeFrequencyAndEventImage(
+            &eventImg, overlayEvents_, useLogFrequency_, eventImageDt_)) {
+            const cv::Mat window =
+              imageMaker_.make((lastFrameTime + delta_t).nanoseconds(), *freqImg, eventImg);
+            lastFrameTime = lastFrameTime + delta_t;
+            char fname[256];
+            snprintf(fname, sizeof(fname) - 1, "/frame_%05u.jpg", frameCount);
+            cv::imwrite(path + fname, window);
+            frameCount++;
+          }
         }
       } else {
         hasValidTime = true;
@@ -197,7 +198,7 @@ void FrequencyCamROS::playEventsFromBagFrameBased(
 
   setTriggers(triggers_file);
 
-  uint64_t timeLimit = 0;
+  uint64_t triggerTimeStamp = 0;
 
   std::size_t triggerIndex = 0;
   while (reader.has_next()) {
@@ -212,24 +213,25 @@ void FrequencyCamROS::playEventsFromBagFrameBased(
       const rclcpp::Time t(msg->header.stamp);
       eventMsg(msg);
       auto decoder = decoderFactory_.getInstance(msg->encoding, msg->width, msg->height);
-      timeLimit = externalTriggers_.at(triggerIndex++);
+      triggerTimeStamp = externalTriggers_.at(triggerIndex++);
       size_t numConsumed = decoder->decodeUntil(
-        msg->events.data(), msg->events.size(), &cam_, timeLimit, nullptr /*uint64_t * nextTime*/);
+        msg->events.data(), msg->events.size(), &cam_, triggerTimeStamp, nullptr /*uint64_t * nextTime*/);
 
       if (numConsumed < msg->events.size()) {
         std::cerr << "There are more events to be processed" << std::endl;
       }
 
       cv::Mat eventImg;
-      auto freqImg = cam_.makeFrequencyAndEventImage(
-        &eventImg, overlayEvents_, useLogFrequency_, eventImageDt_); 
-      const cv::Mat window =
-        imageMaker_.make((lastFrameTime + delta_t).nanoseconds(), freqImg, eventImg);
-      lastFrameTime = lastFrameTime + delta_t;
-      char fname[256];
-      snprintf(fname, sizeof(fname) - 1, "/frame_%05u.jpg", frameCount);
-      cv::imwrite(path + fname, window);
-      frameCount++;
+      if (auto freqImg = cam_.makeFrequencyAndEventImage(
+        &eventImg, overlayEvents_, useLogFrequency_, eventImageDt_, triggerTimeStamp)) {
+        const cv::Mat window =
+          imageMaker_.make((lastFrameTime + delta_t).nanoseconds(), *freqImg, eventImg);
+        lastFrameTime = lastFrameTime + delta_t;
+        char fname[256];
+        snprintf(fname, sizeof(fname) - 1, "/frame_%05u.jpg", frameCount);
+        cv::imwrite(path + fname, window);
+        frameCount++;
+      }
     } else {
       RCLCPP_WARN(get_logger(), "skipped invalid message type in bag!");
     }
@@ -286,11 +288,12 @@ void FrequencyCamROS::frameTimerExpired()
 {
   if (imagePub_.getNumSubscribers() != 0 && height_ != 0) {
     cv::Mat eventImg;
-    auto freqImg = cam_.makeFrequencyAndEventImage(
-        &eventImg, overlayEvents_, useLogFrequency_, eventImageDt_);
-      const cv::Mat window =
-        imageMaker_.make(this->get_clock()->now().nanoseconds(), freqImg, eventImg);
-      imagePub_.publish(cv_bridge::CvImage(header_, "bgr8", window).toImageMsg());
+    if (auto freqImg = cam_.makeFrequencyAndEventImage(
+        &eventImg, overlayEvents_, useLogFrequency_, eventImageDt_)) {
+        const cv::Mat window =
+          imageMaker_.make(this->get_clock()->now().nanoseconds(), *freqImg, eventImg);
+        imagePub_.publish(cv_bridge::CvImage(header_, "bgr8", window).toImageMsg());
+    }
   }
 }
 
