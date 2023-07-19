@@ -28,12 +28,11 @@ set(ROS2_DEPENDENCIES
   "rclcpp"
   "rclcpp_components"
   "rosbag2_cpp"
-  "event_array_msgs"
-  "event_array_codecs"
+  "event_camera_msgs"
+  "event_camera_codecs"
   "image_transport"
   "cv_bridge"
-  "std_msgs"
-  )
+  "std_msgs")
 
 foreach(pkg ${ROS2_DEPENDENCIES})
   find_package(${pkg} REQUIRED)
@@ -45,8 +44,7 @@ ament_auto_find_build_dependencies(REQUIRED ${ROS2_DEPENDENCIES})
 # ---- frequency_cam shared library/component
 #
 ament_auto_add_library(frequency_cam SHARED
-  src/frequency_cam.cpp src/image_maker.cpp src/frequency_cam_ros2.cpp
-  )
+  src/frequency_cam.cpp src/image_maker.cpp src/frequency_cam_ros2.cpp)
 
 rclcpp_components_register_nodes(frequency_cam "frequency_cam::FrequencyCamROS")
 
@@ -66,8 +64,7 @@ ament_auto_add_executable(cpu_benchmark src/cpu_benchmark.cpp)
 
 install(TARGETS
   frequency_cam
-  DESTINATION lib
-)
+  DESTINATION lib)
 
 # the node must go into the project specific lib directory or else
 # the launch file will not find it

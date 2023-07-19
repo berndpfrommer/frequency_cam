@@ -16,7 +16,7 @@
 #ifndef FREQUENCY_CAM__FREQUENCY_CAM_H_
 #define FREQUENCY_CAM__FREQUENCY_CAM_H_
 
-#include <event_array_codecs/event_processor.h>
+#include <event_camera_codecs/event_processor.h>
 
 #include <cstdint>
 #include <fstream>
@@ -27,7 +27,7 @@
 
 namespace frequency_cam
 {
-class FrequencyCam : public event_array_codecs::EventProcessor
+class FrequencyCam : public event_camera_codecs::EventProcessor
 {
 public:
   FrequencyCam() {}

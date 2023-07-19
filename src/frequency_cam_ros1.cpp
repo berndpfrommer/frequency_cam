@@ -83,22 +83,21 @@ void FrequencyCamROS::imageConnectCallback(const image_transport::SingleSubscrib
   }
 }
 
-void FrequencyCamROS::eventMsg(const EventArray::ConstPtr & msg)
+void FrequencyCamROS::eventMsg(const EventPacket::ConstPtr & msg)
 {
   const auto t_start = std::chrono::high_resolution_clock::now();
   if (msg->events.empty()) {
     return;
   }
-  auto decoder = decoderFactory_.getInstance(msg->encoding, msg->width, msg->height);
+  auto decoder = decoderFactory_.getInstance(*msg);
   if (!decoder) {
     ROS_INFO_STREAM("invalid encoding: " << msg->encoding);
     return;
   }
-  decoder->setTimeBase(msg->time_base);
   header_.stamp = msg->header.stamp;
   if (height_ == 0) {
     uint64_t t;
-    if (!decoder->findFirstSensorTime(msg->events.data(), msg->events.size(), &t)) {
+    if (!decoder->findFirstSensorTime(*msg, &t)) {
       return;
     }
     height_ = msg->height;
@@ -109,7 +108,7 @@ void FrequencyCamROS::eventMsg(const EventArray::ConstPtr & msg)
     cam_.initializeState(width_, height_, t, ros::Time(header_.stamp).toNSec());
   }
   // decode will produce callbacks to cam_
-  decoder->decode(&(msg->events[0]), msg->events.size(), &cam_);
+  decoder->decode(*msg, &cam_);
 
   // update statistics
   msgCount_++;

@@ -16,10 +16,11 @@
 #ifndef FREQUENCY_CAM__FREQUENCY_CAM_ROS2_H_
 #define FREQUENCY_CAM__FREQUENCY_CAM_ROS2_H_
 
-#include <event_array_codecs/decoder_factory.h>
+#include <event_camera_codecs/decoder_factory.h>
 
-#include <event_array_msgs/msg/event_array.hpp>
+#include <event_camera_msgs/msg/event_packet.hpp>
 #include <image_transport/image_transport.hpp>
+#include <queue>
 #include <rclcpp/rclcpp.hpp>
 #include <sensor_msgs/msg/image.hpp>
 #include <std_msgs/msg/header.hpp>
@@ -32,7 +33,7 @@ namespace frequency_cam
 class FrequencyCamROS : public rclcpp::Node
 {
 public:
-  using EventArray = event_array_msgs::msg::EventArray;
+  using EventPacket = event_camera_msgs::msg::EventPacket;
   explicit FrequencyCamROS(const rclcpp::NodeOptions & options);
 
   FrequencyCamROS(const FrequencyCamROS &) = delete;
@@ -42,16 +43,20 @@ private:
   void frameTimerExpired();
   void statisticsTimerExpired();
   bool initialize();
-  void eventMsg(const EventArray::ConstSharedPtr msg);
+  void eventMsg(const EventPacket::ConstSharedPtr msg);
   void playEventsFromBag(const std::string & bagName, const std::string & bagTopic);
+  void makeAndWriteFrame(uint64_t debugTime, const std::string & path, uint32_t frameCount);
+  void readFrameTimes();
+  bool initializeOnFirstMessage(EventPacket::ConstSharedPtr msg, uint64_t * firstTime);
   // ------ variables ----
   rclcpp::Time lastPubTime_{0};
-  rclcpp::Subscription<EventArray>::SharedPtr eventSub_;
+  rclcpp::Subscription<EventPacket>::SharedPtr eventSub_;
   rclcpp::TimerBase::SharedPtr frameTimer_;
   rclcpp::TimerBase::SharedPtr statsTimer_;
   image_transport::Publisher imagePub_;
-  event_array_codecs::DecoderFactory<FrequencyCam> decoderFactory_;
+  event_camera_codecs::DecoderFactory<EventPacket, FrequencyCam> decoderFactory_;
   std_msgs::msg::Header header_;
+  std::queue<uint64_t> frameTimes_;
 
   uint32_t width_{0};          // image width
   uint32_t height_{0};         // image height

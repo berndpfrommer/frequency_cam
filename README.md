@@ -51,11 +51,11 @@ colcon build --symlink-install --cmake-args -DCMAKE_BUILD_TYPE=RelWithDebInfo  #
 ```
 ros2 launch frequency_cam frequency_cam.launch.py
 ```
-FrequencyCam expects ROS ``event_array_msgs`` messages from the
-[metavision ROS driver](https://github.com/berndpfrommer/metavision_ros_driver)
+FrequencyCam expects ROS ``event_camera_msgs`` messages from the
+[metavision ROS driver](https://github.com/ros-event-camera/metavision_driver)
 here. You should be able to use other cameras (like DVS etc) by
 converting the messages with a ``republish`` nodelet from the
-[event array tools](https://github.com/berndpfrommer/event_array_tools)
+[event camera tools](https://github.com/ros-event-camera/event_camera_tools)
 repository. 
 
 ### Parameters (see launch file):

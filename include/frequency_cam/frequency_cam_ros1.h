@@ -16,8 +16,8 @@
 #ifndef FREQUENCY_CAM__FREQUENCY_CAM_ROS1_H_
 #define FREQUENCY_CAM__FREQUENCY_CAM_ROS1_H_
 
-#include <event_array_codecs/decoder_factory.h>
-#include <event_array_msgs/EventArray.h>
+#include <event_camera_codecs/decoder_factory.h>
+#include <event_camera_msgs/EventPacket.h>
 #include <image_transport/image_transport.h>
 #include <ros/ros.h>
 #include <sensor_msgs/Image.h>
@@ -31,7 +31,7 @@ namespace frequency_cam
 class FrequencyCamROS
 {
 public:
-  using EventArray = event_array_msgs::EventArray;
+  using EventPacket = event_camera_codecs::EventPacket;
 
   explicit FrequencyCamROS(const ros::NodeHandle & nh);
   FrequencyCamROS(const FrequencyCamROS &) = delete;
@@ -42,7 +42,7 @@ private:
   void statisticsTimerExpired(const ros::TimerEvent &);
   bool initialize();
   void imageConnectCallback(const image_transport::SingleSubscriberPublisher &);
-  void eventMsg(const EventArray::ConstPtr & msg);
+  void eventMsg(const EventPacket::ConstPtr & msg);
 
   // ------ variables ----
   ros::NodeHandle nh_;
@@ -50,7 +50,7 @@ private:
   ros::Timer frameTimer_;     // fires once per frame
   ros::Timer statsTimer_;     // for statistics printout
   image_transport::Publisher imagePub_;
-  event_array_codecs::DecoderFactory<FrequencyCam> decoderFactory_;
+  event_camera_codecs::DecoderFactory<EventPacket, FrequencyCam> decoderFactory_;
   std_msgs::Header header_;  // header with frame id etc
   uint32_t seq_{0};          // ROS1 header seqno
   bool isSubscribedToEvents_{false};

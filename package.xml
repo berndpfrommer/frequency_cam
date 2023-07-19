@@ -24,8 +24,8 @@
   <depend condition="$ROS_VERSION == 1">rosbag</depend>
 
   <!-- common ROS1/ROS2 dependencies -->
-  <depend>event_array_msgs</depend>
-  <depend>event_array_codecs</depend>  
+  <depend>event_camera_msgs</depend>
+  <depend>event_camera_codecs</depend>  
   <depend>image_transport</depend>
   <depend>cv_bridge</depend>
   <depend>std_msgs</depend>
