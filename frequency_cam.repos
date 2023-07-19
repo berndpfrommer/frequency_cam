@@ -1,9 +1,9 @@
 repositories:
-  event_array_msgs:
+  event_camera_msgs:
     type: git
-    url: https://github.com/berndpfrommer/event_array_msgs.git
+    url: https://github.com/ros-event-camera/event_camera_msgs.git
     version: master
-  event_array_codecs:
+  event_camera_codecs:
     type: git
-    url: https://github.com/berndpfrommer/event_array_codecs.git
+    url: https://github.com/ros-event-camera/event_camera_codecs.git
     version: master

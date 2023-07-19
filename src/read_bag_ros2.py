@@ -15,7 +15,7 @@
 # limitations under the License.
 #
 #
-"""Read ROS2 bag with event_array messages into array of metavision SDK events."""
+"""Read ROS2 bag with event_camera messages into array of metavision SDK events."""
 
 # See also::
 # https://github.com/ros2/rosbag2/blob/master/rosbag2_py/test/test_sequential_reader.py

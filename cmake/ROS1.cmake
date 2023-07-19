@@ -20,21 +20,17 @@ find_package(catkin REQUIRED COMPONENTS
   roscpp
   nodelet
   rosbag
-  event_array_msgs
-  event_array_codecs
+  event_camera_msgs
+  event_camera_codecs
   image_transport
   cv_bridge
-  std_msgs
-  )
+  std_msgs)
 
 include_directories(
   include
-  ${catkin_INCLUDE_DIRS}
-  )
+  ${catkin_INCLUDE_DIRS})
 
 catkin_package()
-
-#
 
 # code common to nodelet and node
 add_library(frequency_cam src/frequency_cam.cpp src/image_maker.cpp src/frequency_cam_ros1.cpp)
@@ -59,17 +55,14 @@ install(TARGETS frequency_cam_node
 install(TARGETS frequency_cam frequency_cam_nodelet
   ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
-  RUNTIME DESTINATION ${CATKIN_GLOBAL_BIN_DESTINATION}
-  )
- 
+  RUNTIME DESTINATION ${CATKIN_GLOBAL_BIN_DESTINATION})
+
 install(FILES nodelet_plugins.xml
-  DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}
-)
+  DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION})
 
 install(DIRECTORY launch
   DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}
-  FILES_MATCHING PATTERN "*.launch"
-  )
+  FILES_MATCHING PATTERN "*.launch")
 
 
 #############

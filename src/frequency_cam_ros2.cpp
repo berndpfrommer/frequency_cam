@@ -16,7 +16,7 @@
 #include "frequency_cam/frequency_cam_ros2.h"
 
 #include <cv_bridge/cv_bridge.h>
-#include <event_array_codecs/decoder.h>
+#include <event_camera_codecs/decoder.h>
 #include <math.h>
 
 #include <algorithm>  // std::sort, std::stable_sort, std::clamp
@@ -32,7 +32,7 @@
 
 namespace frequency_cam
 {
-using EventArray = event_array_msgs::msg::EventArray;
+using EventPacket = event_camera_msgs::msg::EventPacket;
 
 FrequencyCamROS::FrequencyCamROS(const rclcpp::NodeOptions & options)
 : Node("frequency_cam", options)
@@ -89,7 +89,7 @@ bool FrequencyCamROS::initialize()
     const size_t EVENT_QUEUE_DEPTH(1000);
     auto qos = rclcpp::QoS(rclcpp::KeepLast(EVENT_QUEUE_DEPTH)).best_effort().durability_volatile();
 
-    eventSub_ = this->create_subscription<EventArray>(
+    eventSub_ = this->create_subscription<EventPacket>(
       "~/events", qos, std::bind(&FrequencyCamROS::eventMsg, this, std::placeholders::_1));
   } else {
     // reading from bag is only for debugging
@@ -117,26 +117,26 @@ void FrequencyCamROS::readFrameTimes()
   }
 }
 
-static EventArray::ConstSharedPtr get_next_message(
+static EventPacket::ConstSharedPtr get_next_message(
   rosbag2_cpp::Reader * reader, const std::string & bagTopic)
 {
   auto bagmsg = reader->read_next();
   rclcpp::SerializedMessage serializedMsg(*bagmsg->serialized_data);
-  rclcpp::Serialization<EventArray> serialization;
+  rclcpp::Serialization<EventPacket> serialization;
 
   if (bagmsg->topic_name == bagTopic) {
-    EventArray::SharedPtr msg(new EventArray());
+    EventPacket::SharedPtr msg(new EventPacket());
     serialization.deserialize_message(&serializedMsg, &(*msg));
     return (msg);
   }
-  return (EventArray::SharedPtr());
+  return (EventPacket::SharedPtr());
 }
 
 void FrequencyCamROS::playEventsFromBag(const std::string & bagName, const std::string & bagTopic)
 {
   imageMaker_.setScale(this->declare_parameter<double>("scale_image", 1.0));
   uint64_t currentFrameTime(frameTimes_.empty() ? 0 : frameTimes_.front());
-  bool hasValidTime(!frameTimes_.empty());  // indicates if currentFrameTime is valid
+
   if (!frameTimes_.empty()) {
     frameTimes_.pop();  // since we are already using the front(), if at all
   }
@@ -153,36 +153,29 @@ void FrequencyCamROS::playEventsFromBag(const std::string & bagName, const std::
   while (reader.has_next()) {
     auto msg = get_next_message(&reader, bagTopic);
     if (msg) {
-      const auto & events = msg->events;
-      eventMsg(msg);
-      auto decoder = decoderFactory_.getInstance(msg->encoding, msg->width, msg->height);
-      if (!hasValidTime) {  // in free-running mode must find first time stamp
-        hasValidTime =
-          decoder->findFirstSensorTime(events.data(), events.size(), &currentFrameTime);
-        if (!hasValidTime) {  // may happen if first packet has no long time stamp
-          continue;
+      if (height_ == 0) {  // must get first frame time
+        uint64_t firstTime{0};
+        if (!initializeOnFirstMessage(msg, &firstTime)) {
+          continue;  // no first time found!
         }
-        currentFrameTime += delta_t;
+        if (frameTimes_.empty()) {
+          currentFrameTime = firstTime + delta_t;
+        }
       }
-      size_t bytesDecoded(0);
-      for (size_t bytesUsed = 0; bytesUsed < events.size();) {
-        uint64_t nextTime{0};
-        // decode up to currentFrameTime. This will produce callbacks to cam_
-        bytesDecoded = decoder->decodeUntil(
-          events.data() + bytesUsed, events.size() - bytesUsed, &cam_, currentFrameTime, &nextTime);
-        bytesUsed += bytesDecoded;
-        if (bytesUsed < events.size()) {  // the frame is complete
-          if (frameTimes_.empty()) {      // free running mode
-            for (; currentFrameTime <= nextTime; currentFrameTime += delta_t) {
-              makeAndWriteFrame(currentFrameTime, path, frameCount++);
-            }
-          } else {
-            // use loop in case multiple frames fit inbetween two events
-            while (!frameTimes_.empty() && currentFrameTime <= nextTime) {
-              makeAndWriteFrame(currentFrameTime, path, frameCount++);
-              currentFrameTime = frameTimes_.front();
-              frameTimes_.pop();
-            }
+      auto decoder = decoderFactory_.getInstance(*msg);
+      uint64_t nextTime{0};
+      // loop will exit when all events in message have been processed
+      while (decoder->decodeUntil(*msg, &cam_, currentFrameTime, &nextTime)) {
+        if (frameTimes_.empty()) {  // free running mode
+          for (; currentFrameTime <= nextTime; currentFrameTime += delta_t) {
+            makeAndWriteFrame(currentFrameTime, path, frameCount++);
+          }
+        } else {
+          // use loop in case multiple frames fit inbetween two events
+          while (!frameTimes_.empty() && currentFrameTime <= nextTime) {
+            makeAndWriteFrame(currentFrameTime, path, frameCount++);
+            currentFrameTime = frameTimes_.front();
+            frameTimes_.pop();
           }
         }
       }
@@ -211,32 +204,44 @@ void FrequencyCamROS::makeAndWriteFrame(
   cv::imwrite(path + fname, window);
 }
 
-void FrequencyCamROS::eventMsg(EventArray::ConstSharedPtr msg)
+bool FrequencyCamROS::initializeOnFirstMessage(
+  EventPacket::ConstSharedPtr msg, uint64_t * firstTime)
 {
-  const auto t_start = std::chrono::high_resolution_clock::now();
   if (msg->events.empty()) {
-    return;
+    return (false);
   }
-  auto decoder = decoderFactory_.getInstance(msg->encoding, msg->width, msg->height);
+  auto decoder = decoderFactory_.getInstance(*msg);
   if (!decoder) {
     RCLCPP_ERROR_STREAM(get_logger(), "invalid encoding: " << msg->encoding);
     throw(std::runtime_error("invalid encoding!"));
   }
-  decoder->setTimeBase(msg->time_base);
-  header_.stamp = msg->header.stamp;
-  if (height_ == 0) {
-    uint64_t t;
-    if (!decoder->findFirstSensorTime(msg->events.data(), msg->events.size(), &t)) {
-      return;
-    }
-    height_ = msg->height;
-    width_ = msg->width;
-    header_ = msg->header;  // copy frame id
-    lastSeq_ = msg->seq - 1;
-    const uint64_t t_off =
-      (msg->encoding == "mono") ? t : (rclcpp::Time(msg->header.stamp).nanoseconds() - t);
-    cam_.initializeState(width_, height_, t, t_off);
+
+  if (!decoder->findFirstSensorTime(*msg, firstTime)) {
+    return (false);
   }
+  height_ = msg->height;
+  width_ = msg->width;
+  header_ = msg->header;  // copy frame id
+  lastSeq_ = msg->seq - 1;
+  const uint64_t t_off = (msg->encoding == "mono")
+                           ? *firstTime
+                           : (rclcpp::Time(msg->header.stamp).nanoseconds() - *firstTime);
+  cam_.initializeState(width_, height_, *firstTime, t_off);
+  return (true);
+}
+
+void FrequencyCamROS::eventMsg(EventPacket::ConstSharedPtr msg)
+{
+  const auto t_start = std::chrono::high_resolution_clock::now();
+  uint64_t firstTime{0};
+  if (height_ == 0 && !initializeOnFirstMessage(msg, &firstTime)) {
+    return;
+  }
+  header_.stamp = msg->header.stamp;
+  // decode will produce callbacks to cam_
+  auto decoder = decoderFactory_.getInstance(*msg);
+  decoder->decode(*msg, &cam_);
+
   msgCount_++;
   droppedSeq_ += static_cast<int64_t>(msg->seq) - lastSeq_ - 1;
   lastSeq_ = static_cast<int64_t>(msg->seq);

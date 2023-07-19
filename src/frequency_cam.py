@@ -202,12 +202,12 @@ class FrequencyCam():
 
     def update_state_from_list(self, event_list):
         if len(event_list) > 0:
-            event_array = np.array(event_list, dtype=EventCD)
-            self.update_state(event_array)
+            event_camera = np.array(event_list, dtype=EventCD)
+            self.update_state(event_camera)
 
-    def update_state(self, event_array):
-        self.update_state_filter(event_array)
-        self._events.append(event_array)
+    def update_state(self, event_camera):
+        self.update_state_filter(event_camera)
+        self._events.append(event_camera)
 
     def process_events(self, events):
         if self._timestamps is not None:
