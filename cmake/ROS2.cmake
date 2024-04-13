@@ -38,6 +38,10 @@ foreach(pkg ${ROS2_DEPENDENCIES})
   find_package(${pkg} REQUIRED)
 endforeach()
 
+if(${cv_bridge_VERSION} GREATER "3.3.0")
+  add_definitions(-DUSE_CV_BRIDGE_HPP)
+endif()
+
 ament_auto_find_build_dependencies(REQUIRED ${ROS2_DEPENDENCIES})
 
 #
