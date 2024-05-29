@@ -20,26 +20,28 @@
 # See also::
 # https://github.com/ros2/rosbag2/blob/master/rosbag2_py/test/test_sequential_reader.py
 
-import time
-import sys
-from rclpy.serialization import deserialize_message
-from rosidl_runtime_py.utilities import get_message
-import rosbag2_py
 import argparse
-import numpy as np
+import sys
+import time
+
 from event_types import EventCD
+import numpy as np
+from rclpy.serialization import deserialize_message
 from rclpy.time import Time
+import rosbag2_py
+from rosidl_runtime_py.utilities import get_message
 
 
-class BagReader():
+class BagReader:
+    """reads ros2 bag."""
+
     def __init__(self, bag_name, topics):
         bag_path = str(bag_name)
         storage_options, converter_options = self.get_rosbag_options(bag_path)
         self.reader = rosbag2_py.SequentialReader()
         self.reader.open(storage_options, converter_options)
         topic_types = self.reader.get_all_topics_and_types()
-        self.type_map = {topic_types[i].name: topic_types[i].type
-                         for i in range(len(topic_types))}
+        self.type_map = {topic_types[i].name: topic_types[i].type for i in range(len(topic_types))}
         storage_filter = rosbag2_py.StorageFilter(topics=[topics])
         self.reader.set_filter(storage_filter)
 
@@ -53,49 +55,49 @@ class BagReader():
         return (topic, msg, t_rec)
 
     def get_rosbag_options(self, path, serialization_format='cdr'):
-        storage_options = rosbag2_py.StorageOptions(uri=path,
-                                                    storage_id='sqlite3')
+        storage_options = rosbag2_py.StorageOptions(uri=path, storage_id='sqlite3')
         converter_options = rosbag2_py.ConverterOptions(
             input_serialization_format=serialization_format,
-            output_serialization_format=serialization_format)
+            output_serialization_format=serialization_format,
+        )
         return storage_options, converter_options
 
 
-class ArrayConverter():
+class ArrayConverter:
+    """converts array of events."""
+
     def convert(msg, time_base):
         width = msg.width
         height = msg.height
         # unpack all events in the message
         packed = np.frombuffer(msg.events, dtype=np.uint64)
-        y = np.bitwise_and(
-            np.right_shift(packed, 48), 0x7FFF).astype(np.uint16)
-        x = np.bitwise_and(
-            np.right_shift(packed, 32), 0xFFFF).astype(np.uint16)
-        t = (np.bitwise_and(packed, 0xFFFFFFFF)
-             + time_base).astype(np.int64) // 1000
+        y = np.bitwise_and(np.right_shift(packed, 48), 0x7FFF).astype(np.uint16)
+        x = np.bitwise_and(np.right_shift(packed, 32), 0xFFFF).astype(np.uint16)
+        t = (np.bitwise_and(packed, 0xFFFFFFFF) + time_base).astype(np.int64) // 1000
         p = np.right_shift(packed, 63).astype(np.int16)
         return width, height, (x, y, p, t)
 
 
-class EventCDConverter():
+class EventCDConverter:
+    """converts cd events to numpy array."""
+
     def convert(self, msg, time_base):
         width = msg.width
         height = msg.height
         # unpack all events in the message
         packed = np.frombuffer(msg.events, dtype=np.uint64)
         evs = np.empty(len(msg.events) // 8, dtype=EventCD)
-        evs['y'] = np.bitwise_and(
-            np.right_shift(packed, 48), 0x7FFF).astype(np.uint16)
-        evs['x'] = np.bitwise_and(
-            np.right_shift(packed, 32), 0xFFFF).astype(np.uint16)
+        evs['y'] = np.bitwise_and(np.right_shift(packed, 48), 0x7FFF).astype(np.uint16)
+        evs['x'] = np.bitwise_and(np.right_shift(packed, 32), 0xFFFF).astype(np.uint16)
         # empirically cannot use more than 48 bits of the full time stamp
-        evs['t'] = ((np.bitwise_and(packed, 0xFFFFFFFF)
-                    + time_base).astype(np.int64) // 1000) & 0xFFFFFFFFFFF
+        evs['t'] = (
+            (np.bitwise_and(packed, 0xFFFFFFFF) + time_base).astype(np.int64) // 1000
+        ) & 0xFFFFFFFFFFF
         evs['p'] = np.right_shift(packed, 63).astype(np.int16)
         return width, height, evs
 
     def offset(self, time_base):
-        return ((time_base // 1000) & ~0xFFFFFFFFFFF)
+        return (time_base // 1000) & ~0xFFFFFFFFFFF
 
 
 def decode_packet(data, time_base):
@@ -103,17 +105,21 @@ def decode_packet(data, time_base):
     # This decoding is redundant but was needed to make the old
     # code work
     packed = np.frombuffer(data, dtype=np.uint64)
-    y = np.bitwise_and(
-        np.right_shift(packed, 48), 0x7FFF).astype(np.uint16)
-    x = np.bitwise_and(
-        np.right_shift(packed, 32), 0xFFFF).astype(np.uint16)
+    y = np.bitwise_and(np.right_shift(packed, 48), 0x7FFF).astype(np.uint16)
+    x = np.bitwise_and(np.right_shift(packed, 32), 0xFFFF).astype(np.uint16)
     t = np.bitwise_and(packed, 0xFFFFFFFF) + time_base
     p = np.right_shift(packed, 63).astype(np.uint16)
     return (t, x, y, p)
 
 
-def read_bag(bag_path, topic, use_sensor_time=False,
-             converter=EventCDConverter(), skip=0, max_read=None):
+def read_bag(
+    bag_path,
+    topic,
+    use_sensor_time=False,
+    converter=EventCDConverter(),
+    skip=0,
+    max_read=None,
+):
     bag = BagReader(bag_path, topic)
     start_time = time.time()
     num_events = 0
@@ -123,13 +129,13 @@ def read_bag(bag_path, topic, use_sensor_time=False,
     offset = 0
     while bag.has_next():
         topic, msg, t_rec = bag.read_next()
-        time_base = msg.time_base if use_sensor_time else \
-            Time().from_msg(msg.header.stamp).nanoseconds
+        time_base = (
+            msg.time_base if use_sensor_time else Time().from_msg(msg.header.stamp).nanoseconds
+        )
         offset = converter.offset(time_base)
         width, height, evs = converter.convert(msg, time_base)
         start_idx = max(0, min(skip - num_events, evs.shape[0]))
-        end_idx = evs.shape[0] if max_read is None else \
-            min(max_read - num_events, evs.shape[0])
+        end_idx = evs.shape[0] if max_read is None else min(max_read - num_events, evs.shape[0])
         events.append(evs[start_idx:end_idx])
         num_events += end_idx - start_idx
         num_msgs += 1
@@ -137,8 +143,10 @@ def read_bag(bag_path, topic, use_sensor_time=False,
             break
 
     dt = time.time() - start_time
-    print(f'took {dt:2f}s to process {num_msgs}, rate: {num_msgs / dt} ' +
-          f'msgs/s, {num_events * 1e-6 / dt} Mev/s')
+    print(
+        f'took {dt:2f}s to process {num_msgs}, rate: {num_msgs / dt} '
+        + f'msgs/s, {num_events * 1e-6 / dt} Mev/s'
+    )
     return events, (width, height), offset, num_events, num_msgs
 
 
@@ -171,8 +179,9 @@ def read_as_list(fname, topic, use_sensor_time=True, skip=0, max_read=None):
         if skipped < skip:
             skipped += len(msg.events)
             continue
-        time_base = msg.time_base if use_sensor_time else \
-            Time.from_msg(msg.header.stamp).nanoseconds
+        time_base = (
+            msg.time_base if use_sensor_time else Time.from_msg(msg.header.stamp).nanoseconds
+        )
         t, x, y, p = decode_packet(msg.events, time_base)
         # convert to uint32 to avoid uint16 arithmetic!
         idx = y.astype(np.uint32) * res[0] + x.astype(np.uint32)
@@ -187,15 +196,16 @@ def read_as_list(fname, topic, use_sensor_time=True, skip=0, max_read=None):
             break
     t1 = time.time()
     dt = t1 - t0
-    print(f'took {dt:.3f}s to read {cnt} events ({cnt * 1e-6 / dt:.3f} Mevs)',
-          f' @ resolution: {res}\n',
-          f'# of OFF: {event_count[0]:8d}\n # of ON:  {event_count[1]:8d}')
+    print(
+        f'took {dt:.3f}s to read {cnt} events ({cnt * 1e-6 / dt:.3f} Mevs)',
+        f' @ resolution: {res}\n',
+        f'# of OFF: {event_count[0]:8d}\n # of ON:  {event_count[1]:8d}',
+    )
 
     return data, res
 
 
-def read_as_array(bag_path, topic, use_sensor_time=True,
-                  skip=0, max_read=None):
+def read_as_array(bag_path, topic, use_sensor_time=True, skip=0, max_read=None):
     """
     Read events as an array.
 
@@ -219,44 +229,52 @@ def merge_array_list(array_list, num_events, dtype):
     events = np.empty((num_events), dtype=dtype)
     idx = 0
     for a in array_list:
-        events[idx:(idx + a.shape[0])] = a
+        events[idx : (idx + a.shape[0])] = a  # noqa: E203
         idx += a.shape[0]
     return events
 
 
-def read_events_for_pixels(bag_path, pixel_list, topic,
-                           use_sensor_time=True, skip=0, max_read=None):
+def read_events_for_pixels(
+    bag_path, pixel_list, topic, use_sensor_time=True, skip=0, max_read=None
+):
     start_time = time.time()
     array_list, res, _, num_events, num_msgs = read_bag(
-        bag_path, topic, use_sensor_time, EventCDConverter(), skip, max_read)
+        bag_path, topic, use_sensor_time, EventCDConverter(), skip, max_read
+    )
 
     events = merge_array_list(array_list, num_events, dtype=EventCD)
 
     # create empty list
     data = [[] for i in range(res[0] * res[1])]
     # fill only for requested pixel indexes
-    idx = events['x'].astype(np.uint32) \
-        + events['y'].astype(np.uint32) * res[0]
+    idx = events['x'].astype(np.uint32) + events['y'].astype(np.uint32) * res[0]
 
     for pixel in pixel_list:
         match_idx = idx == pixel
         if np.count_nonzero(match_idx) > 0:
-            data[pixel] = np.column_stack(
-                (events['t'][match_idx], events['p'][match_idx]))
+            data[pixel] = np.column_stack((events['t'][match_idx], events['p'][match_idx]))
 
     dt = time.time() - start_time
-    print(f'events: {events.shape[0]} in {num_msgs / dt} msgs/s, ' +
-          f'{num_events * 1e-6 / dt} Mev/s')
+    print(
+        f'events: {events.shape[0]} in {num_msgs / dt} msgs/s, '
+        + f'{num_events * 1e-6 / dt} Mev/s'
+    )
     return data, res
 
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser(
-        description='read and decode events from bag.')
-    parser.add_argument('--bag', '-b', action='store', default=None,
-                        required=True, help='bag file to read events from')
-    parser.add_argument('--topic', help='Event topic to read',
-                        default='/event_camera/events', type=str)
+    parser = argparse.ArgumentParser(description='read and decode events from bag.')
+    parser.add_argument(
+        '--bag',
+        '-b',
+        action='store',
+        default=None,
+        required=True,
+        help='bag file to read events from',
+    )
+    parser.add_argument(
+        '--topic', help='Event topic to read', default='/event_camera/events', type=str
+    )
     args = parser.parse_args()
 
     events, res, _, _, _ = read_bag(args.bag, args.topic)

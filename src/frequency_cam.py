@@ -17,31 +17,39 @@
 #
 """Python implementation of the Frequency Cam filter algorithm."""
 
-import numpy as np
 import math
+
 from event_types import EventCD
+import numpy as np
 
 #
 # structure to hold the filter state and aux variables
 #
 
 State = np.dtype(
-    {'names': ['t_flip_up_down', 't_flip_down_up',
-               'L',  'L_lag', 'period', 'p'],
-     'formats': ['<i8', '<i8', '<f4', '<f4', '<f4', '<i1'],
-     'offsets': [0,       8,     16,   20,     24,     28],
-     'itemsize': 29})
+    {
+        'names': ['t_flip_up_down', 't_flip_down_up', 'L', 'L_lag', 'period', 'p'],
+        'formats': ['<i8', '<i8', '<f4', '<f4', '<f4', '<i1'],
+        'offsets': [0, 8, 16, 20, 24, 28],
+        'itemsize': 29,
+    }
+)
 
 
-class FrequencyCam():
-    def __init__(self, width, height,
-                 min_freq, max_freq,
-                 cutoff_period=20,
-                 frame_timestamps=None,
-                 frame_timeslice=None,
-                 timeout_cycles=2.0,
-                 debug_pixels=(-1, -1),
-                 extra_args={}):
+class FrequencyCam:
+    def __init__(
+        self,
+        width,
+        height,
+        min_freq,
+        max_freq,
+        cutoff_period=20,
+        frame_timestamps=None,
+        frame_timeslice=None,
+        timeout_cycles=2.0,
+        debug_pixels=(-1, -1),
+        extra_args={},
+    ):
         self._res = (width, height)
         self._freq_range = np.array((min_freq, max_freq))
         self._extra_args = extra_args
@@ -58,8 +66,9 @@ class FrequencyCam():
         else:
             self._timestamps = None
 
-        self._frame_timeslice = None if frame_timeslice is None \
-            else int(frame_timeslice * 1e6)  # convert to us
+        self._frame_timeslice = (
+            None if frame_timeslice is None else int(frame_timeslice * 1e6)
+        )  # convert to us
         self._current_frame_end_time = None
         self._events = []  # no pending events yet
         self._width = width
@@ -71,16 +80,15 @@ class FrequencyCam():
             alpha = (1 - math.sin(omega_cut)) / math.cos(omega_cut)
             phi = 2 - math.cos(omega_cut)
             beta = phi - math.sqrt(phi**2 - 1)
-            self._c = np.array((alpha + beta, -alpha * beta, 0.5 * (1 + beta)),
-                               dtype=np.float32)
+            self._c = np.array((alpha + beta, -alpha * beta, 0.5 * (1 + beta)), dtype=np.float32)
         else:
             self._c = None
         self._merged_events = 0
         self._processed_events = 0
         self._events_this_frame = 0
         if self._debug_x != -1 and self._debug_y != -1:
-            self._debug = open("freq.txt", "w")
-            self._readout = open("readout.txt", "w")
+            self._debug = open('freq.txt', 'w')
+            self._readout = open('readout.txt', 'w')
 
     def get_frame_number(self):
         return self._frame_number
@@ -132,8 +140,7 @@ class FrequencyCam():
                         to = self._state['period'][y, x] * self._timeout_cycles
                         if dt_ud > to and dt_du > 0.5 * to:
                             self._state['period'][y, x] = 0  # stale pixel
-                        elif (dt_du >= 0.5 * self._dt_min) and \
-                             (dt_du <= 0.5 * self._dt_max):
+                        elif (dt_du >= 0.5 * self._dt_min) and (dt_du <= 0.5 * self._dt_max):
                             # don't have a valid period, init from half cycle
                             self._state['period'][y, x] = 2 * dt_du
                 # update the flip time
@@ -142,8 +149,11 @@ class FrequencyCam():
                 # ---------------------------------------------
                 # signal crosses the zero line from below
                 dt_du = (t - self._state['t_flip_down_up'][y, x]) * 1.0e-6
-                if self._state['period'][y, x] <= 0 and \
-                   dt_du >= self._dt_min and dt_du <= self._dt_max:
+                if (
+                    self._state['period'][y, x] <= 0
+                    and dt_du >= self._dt_min
+                    and dt_du <= self._dt_max
+                ):
                     # period is within valid range and no period available yet
                     self._state['period'][y, x] = dt_du
                 else:
@@ -154,20 +164,23 @@ class FrequencyCam():
                         to = self._state['period'][y, x] * self._timeout_cycles
                         if dt_du > to and dt_ud > 0.5 * to:
                             self._state['period'][y, x] = 0  # stale pixel
-                    elif (dt_ud >= 0.5 * self._dt_min) and \
-                         (dt_ud <= 0.5 * self._dt_max):
+                    elif (dt_ud >= 0.5 * self._dt_min) and (dt_ud <= 0.5 * self._dt_max):
                         # have invalid period, initialize from half-cycle
                         self._state['period'][y, x] = 2 * dt_ud
                 # update the flip time
                 self._state['t_flip_down_up'][y, x] = t
 
             if x == self._debug_x and y == self._debug_y:
-                dt = (t - max(self._state['t_flip_up_down'][y, x],
-                              self._state['t_flip_down_up'][y, x])) * 1e-6
-                self._debug.write(f"{t + self.time_offset} {dp} {L_k}"
-                                  + f" {L_km1} {L_km2} {dt}"
-                                  + f" {self._state['period'][y, x]}"
-                                  + f" {self._dt_min} {self._dt_max}\n")
+                dt = (
+                    t
+                    - max(self._state['t_flip_up_down'][y, x], self._state['t_flip_down_up'][y, x])
+                ) * 1e-6
+                self._debug.write(
+                    f'{t + self.time_offset} {dp} {L_k}'
+                    + f' {L_km1} {L_km2} {dt}'
+                    + f" {self._state['period'][y, x]}"
+                    + f' {self._dt_min} {self._dt_max}\n'
+                )
                 self._debug.flush()
 
             # update twice lagged signal
@@ -185,18 +198,24 @@ class FrequencyCam():
         #   - pixels where no period has been detected yet
         #   - pixels that have not flipped for two periods
 
-        dt = (t_now - np.maximum(self._state['t_flip_up_down'],
-                                 self._state['t_flip_down_up'])) * 1e-6
-        fm = np.divide(1.0, period,
-                       out=np.zeros_like(period),
-                       where=((period > 0)
-                              & (dt < period * self._timeout_cycles)
-                              & (dt < self._dt_max * self._timeout_cycles)))
+        dt = (
+            t_now - np.maximum(self._state['t_flip_up_down'], self._state['t_flip_down_up'])
+        ) * 1e-6
+        fm = np.divide(
+            1.0,
+            period,
+            out=np.zeros_like(period),
+            where=(
+                (period > 0)
+                & (dt < period * self._timeout_cycles)
+                & (dt < self._dt_max * self._timeout_cycles)
+            ),
+        )
 
         if self._debug_x != -1 and self._debug_y != -1:
             self._readout.write(
-                f'{(t_now  + self.time_offset) * 1e-6} ' +
-                f'{fm[self._debug_y, self._debug_x]}\n')
+                f'{(t_now  + self.time_offset) * 1e-6} ' + f'{fm[self._debug_y, self._debug_x]}\n'
+            )
             self._readout.flush()
         return fm
 
@@ -228,19 +247,20 @@ class FrequencyCam():
             # need to split
             event_list = []
             for e in events:
-                while (self._frame_number < self._timestamps.shape[0] and
-                       e['t'] > self._timestamps[self._frame_number]):
+                while (
+                    self._frame_number < self._timestamps.shape[0]
+                    and e['t'] > self._timestamps[self._frame_number]
+                ):
                     # write events and bump frame number until caught
                     # up with the current event time
                     self.update_state_from_list(event_list)
                     event_list = []
                     fmap = self.make_frequency_map(self._last_event_time)
                     self._callback(
-                        self._frame_number, self._events, fmap,
-                        self._freq_range, self._extra_args)
+                        self._frame_number, self._events, fmap, self._freq_range, self._extra_args
+                    )
                     self._events = []
-                    print(f"frame {self._frame_number} has events: ",
-                          f"{self._events_this_frame}")
+                    print(f'frame {self._frame_number} has events: ', f'{self._events_this_frame}')
                     self._events_this_frame = 0
                     self._frame_number += 1
                 event_list.append(e)
@@ -254,8 +274,7 @@ class FrequencyCam():
     def process_events_to_frames(self, events):
         # handle case of first event received
         if self._current_frame_end_time is None:
-            self._current_frame_end_time = events[0]['t'] \
-                + self._frame_timeslice
+            self._current_frame_end_time = events[0]['t'] + self._frame_timeslice
 
         if events[-1]['t'] < self._current_frame_end_time:
             # in the not unusual case where all events in this call
@@ -273,11 +292,12 @@ class FrequencyCam():
                     event_list = []
                     fmap = self.make_frequency_map(self._last_event_time)
                     self._callback(
-                        self._frame_number, self._events, fmap,
-                        self._freq_range, self._extra_args)
+                        self._frame_number, self._events, fmap, self._freq_range, self._extra_args
+                    )
                     self._events = []
-                    print(f"frame {self._frame_number} has events: "
-                          + f"{self._events_this_frame}")
+                    print(
+                        f'frame {self._frame_number} has events: ' + f'{self._events_this_frame}'
+                    )
                     self._events_this_frame = 0
                     self._frame_number += 1
                     self._current_frame_end_time += self._frame_timeslice

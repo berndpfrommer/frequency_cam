@@ -16,10 +16,10 @@
 #
 
 import launch
-from launch_ros.actions import Node
-from launch.substitutions import LaunchConfiguration as LaunchConfig
 from launch.actions import DeclareLaunchArgument as LaunchArg
 from launch.actions import OpaqueFunction
+from launch.substitutions import LaunchConfiguration as LaunchConfig
+from launch_ros.actions import Node
 
 
 def launch_setup(context, *args, **kwargs):
@@ -37,36 +37,46 @@ def launch_setup(context, *args, **kwargs):
         # prefix=['xterm -e gdb -ex run --args'],
         name='frequency_cam',
         parameters=[
-            {'use_sim_time': LaunchConfig('use_sim_time'),
-             'min_frequency': 10.0,
-             'max_frequency': 5000.0,
-             'cutoff_period': 5.0,  # prefilter cutoff period #events
-             'debug_x': 240,
-             'debug_y': 194,
-             'use_log_frequency': False,
-             'overlay_events': True,
-             'bag_file': LaunchConfig('bag').perform(context),
-             'frame_time_file': LaunchConfig('frame_time_file').perform(context),
-             'publishing_frequency': 25.0}],
-        remappings=[
-            ('~/events', event_topic),
-            ('~/image', image_topic)
-        ])
+            {
+                'use_sim_time': LaunchConfig('use_sim_time'),
+                'min_frequency': 10.0,
+                'max_frequency': 5000.0,
+                'cutoff_period': 5.0,  # prefilter cutoff period #events
+                'debug_x': 240,
+                'debug_y': 194,
+                'use_log_frequency': False,
+                'overlay_events': True,
+                'bag_file': LaunchConfig('bag').perform(context),
+                'frame_time_file': LaunchConfig('frame_time_file').perform(context),
+                'publishing_frequency': 25.0,
+            }
+        ],
+        remappings=[('~/events', event_topic), ('~/image', image_topic)],
+    )
     return [node]
 
 
 def generate_launch_description():
     """Create slicer node by calling opaque function."""
-    return launch.LaunchDescription([
-        LaunchArg('image_topic', default_value=['/event_camera/image'],
-                  description='image topic'),
-        LaunchArg('event_topic', default_value=['/event_camera/events'],
-                  description='event topic'),
-        LaunchArg('frame_time_file', default_value=[''],
-                  description='file with frame times (sensor time in nanosec)'),
-        LaunchArg('bag', default_value=[''],
-                  description='name of bag file to read'),
-        LaunchArg('use_sim_time', default_value=['false'],
-                  description='whether to use simulation time'),
-        OpaqueFunction(function=launch_setup)
-        ])
+    return launch.LaunchDescription(
+        [
+            LaunchArg(
+                'image_topic', default_value=['/event_camera/image'], description='image topic'
+            ),
+            LaunchArg(
+                'event_topic', default_value=['/event_camera/events'], description='event topic'
+            ),
+            LaunchArg(
+                'frame_time_file',
+                default_value=[''],
+                description='file with frame times (sensor time in nanosec)',
+            ),
+            LaunchArg('bag', default_value=[''], description='name of bag file to read'),
+            LaunchArg(
+                'use_sim_time',
+                default_value=['false'],
+                description='whether to use simulation time',
+            ),
+            OpaqueFunction(function=launch_setup),
+        ]
+    )
