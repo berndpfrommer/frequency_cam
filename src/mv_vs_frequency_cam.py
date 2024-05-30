@@ -24,7 +24,7 @@ import cv2  # noqa: I100
 import frequency_cam  # noqa: I100
 import numpy as np
 from metavision_sdk_analytics import FrequencyMapAsyncAlgorithm  # noqa: I100
-from read_bag_ros2 import read_bag
+from read_bag_ros2 import read_bag, EventCDConverter
 
 # global variables to keep track of current frame, events etc
 
@@ -301,7 +301,7 @@ if __name__ == '__main__':
     labels = args.labels
 
     events, res, offset, _, _ = read_bag(
-        args.bag, args.topic, use_sensor_time=False, converter=frequency_cam.EventCDConverter()
+        args.bag, args.topic, use_sensor_time=False, converter=EventCDConverter()
     )
 
     Path(args.output_dir).mkdir(parents=True, exist_ok=True)
