@@ -55,7 +55,7 @@ class BagReader:
         return (topic, msg, t_rec)
 
     def get_rosbag_options(self, path, serialization_format='cdr'):
-        storage_options = rosbag2_py.StorageOptions(uri=path, storage_id='sqlite3')
+        storage_options = rosbag2_py.StorageOptions(uri=path, storage_id='mcap')
         converter_options = rosbag2_py.ConverterOptions(
             input_serialization_format=serialization_format,
             output_serialization_format=serialization_format,
