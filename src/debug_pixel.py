@@ -17,23 +17,29 @@
 #
 """Script for plotting pixel debugging data."""
 
-import numpy as np
-import matplotlib.pyplot as plt
 import argparse
 
+import matplotlib.pyplot as plt
+import numpy as np
+
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser(
-        description='plot debugging data')
+    parser = argparse.ArgumentParser(description='plot debugging data')
     parser.add_argument(
-        '--file', '-f', nargs='+',
-        required=True, help='frequency input file(s) with data (can be multiple files)')
+        '--file',
+        '-f',
+        nargs='+',
+        required=True,
+        help='frequency input file(s) with data (can be multiple files)',
+    )
     parser.add_argument(
-        '--readout', '-r', nargs='+',
-        required=True, help='readout input file(s) with data (can be multiple files)')
-    parser.add_argument('--freq_min', help='min frequency (hz)',
-                        default=200, type=float)
-    parser.add_argument('--freq_max', help='max frequency (hz)',
-                        default=300, type=float)
+        '--readout',
+        '-r',
+        nargs='+',
+        required=True,
+        help='readout input file(s) with data (can be multiple files)',
+    )
+    parser.add_argument('--freq_min', help='min frequency (hz)', default=200, type=float)
+    parser.add_argument('--freq_max', help='max frequency (hz)', default=300, type=float)
 
     args = parser.parse_args()
 
@@ -57,8 +63,7 @@ if __name__ == '__main__':
         vr = np.where(readout[:, 1] < 1e-6, 1e10, readout[:, 1])
         dt_r = np.zeros_like(t_r)
         np.divide(1.0, readout[:, 1], out=dt_r, where=readout[:, 1] > 1e-6)
-        axs[1].plot(t_r, dt_r, '-.o', markerfacecolor='none',
-                    label=f'dt(readout) {f}')
+        axs[1].plot(t_r, dt_r, '-.o', markerfacecolor='none', label=f'dt(readout) {f}')
 
     axs[0].legend()
     axs[1].legend()

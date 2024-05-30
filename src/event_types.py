@@ -19,6 +19,11 @@
 
 import numpy as np
 
-EventCD = np.dtype({'names': ['x', 'y', 'p', 't'],
-                    'formats': ['<u2', '<u2', '<i2', '<i8'],
-                    'offsets': [0, 2, 4, 8], 'itemsize': 16})
+EventCD = np.dtype(
+    {
+        'names': ['x', 'y', 'p', 't'],
+        'formats': ['<u2', '<u2', '<i2', '<i8'],
+        'offsets': [0, 2, 4, 8],
+        'itemsize': 16,
+    }
+)

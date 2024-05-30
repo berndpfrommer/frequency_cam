@@ -25,28 +25,13 @@ Here are a few videos of FrequencyCam in action:
 
 Currently tested on Ubuntu 20.04 under ROS2 Galactic.
 
-## How to build
-Create a workspace (``~/ws``), clone this repo, and use ``vcs``
-to pull in the remaining dependencies:
+Set the following shell variables:
+```bash
+repo=frequency_cam
+url=https://github.com/berndpfrommer/${repo}.git
 ```
-pkg=frequenc_cam
-mkdir -p ~/${pkg}_ws/src
-cd ~/${pkg}_ws
-git clone https://github.com/berndpfrommer/${pkg}.git src/${pkg}
-cd src
-vcs import < ${pkg}/${pkg}.repos
-cd ..
-```
+and follow the [instructions here](https://github.com/ros-misc-utilities/.github/blob/master/docs/build_ros_repository.md)
 
-The build procedure is standard for ROS1 (catkin) and ROS2, so here is
-only the ROS2 syntax:
-
-```
-cd ~/ws
-colcon build --symlink-install --cmake-args -DCMAKE_BUILD_TYPE=RelWithDebInfo  # (optionally add -DCMAKE_EXPORT_COMPILE_COMMANDS=1)
-```
-
-## How to use
 
 ```
 ros2 launch frequency_cam frequency_cam.launch.py
@@ -56,7 +41,8 @@ FrequencyCam expects ROS ``event_camera_msgs`` messages from the
 here. You should be able to use other cameras (like DVS etc) by
 converting the messages with a ``republish`` nodelet from the
 [event camera tools](https://github.com/ros-event-camera/event_camera_tools)
-repository. 
+repository. Alternatively you can use the [libcaer driver](https://github.com/ros-event-camera/libcaer_driver/) that
+publishes suitable messages natively.
 
 ### Parameters (see launch file):
 
