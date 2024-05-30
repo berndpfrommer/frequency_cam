@@ -214,7 +214,7 @@ class FrequencyCam:
 
         if self._debug_x != -1 and self._debug_y != -1:
             self._readout.write(
-                f'{(t_now  + self.time_offset) * 1e-6} ' + f'{fm[self._debug_y, self._debug_x]}\n'
+                f'{(t_now + self.time_offset) * 1e-6} ' + f'{fm[self._debug_y, self._debug_x]}\n'
             )
             self._readout.flush()
         return fm
