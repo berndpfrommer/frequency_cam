@@ -109,7 +109,7 @@ class FrequencyCam:
         self._state['p'] = -1  # should set to zero?
         self._last_event_time = t
 
-    def set_output_callback(self, cb):
+    def set_frame_callback(self, cb):
         self._callback = cb
 
     def update_state_filter(self, events):
@@ -275,14 +275,13 @@ class FrequencyCam:
         # handle case of first event received
         if self._current_frame_end_time is None:
             self._current_frame_end_time = events[0]['t'] + self._frame_timeslice
-
         if events[-1]['t'] < self._current_frame_end_time:
             # in the not unusual case where all events in this call
             # belong to the current frame and there is no cross-over
             # into the next one, simply update the state and store the events
             self.update_state(events)
         else:
-            # need to split
+            # some events belong to next frame, need to split event packet
             event_list = []
             for e in events:
                 while e['t'] > self._current_frame_end_time:
