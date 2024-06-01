@@ -17,10 +17,10 @@
 #
 """Python implementation of the Frequency Cam filter algorithm."""
 
-import math
+import math  # noqa: I100
 
-from event_types import EventCD
-import numpy as np
+from event_types import EventCD  # noqa: I100
+import numpy as np  # noqa: I100
 
 #
 # structure to hold the filter state and aux variables
@@ -260,7 +260,6 @@ class FrequencyCam:
                         self._frame_number, self._events, fmap, self._freq_range, self._extra_args
                     )
                     self._events = []
-                    print(f'frame {self._frame_number} has events: ', f'{self._events_this_frame}')
                     self._events_this_frame = 0
                     self._frame_number += 1
                 event_list.append(e)
@@ -294,9 +293,6 @@ class FrequencyCam:
                         self._frame_number, self._events, fmap, self._freq_range, self._extra_args
                     )
                     self._events = []
-                    print(
-                        f'frame {self._frame_number} has events: ' + f'{self._events_this_frame}'
-                    )
                     self._events_this_frame = 0
                     self._frame_number += 1
                     self._current_frame_end_time += self._frame_timeslice
