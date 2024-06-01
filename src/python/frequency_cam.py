@@ -17,10 +17,10 @@
 #
 """Python implementation of the Frequency Cam filter algorithm."""
 
-import math
+import math  # noqa: I100
 
-from event_types import EventCD
-import numpy as np
+from event_types import EventCD  # noqa: I100
+import numpy as np  # noqa: I100
 
 #
 # structure to hold the filter state and aux variables
@@ -109,7 +109,7 @@ class FrequencyCam:
         self._state['p'] = -1  # should set to zero?
         self._last_event_time = t
 
-    def set_output_callback(self, cb):
+    def set_frame_callback(self, cb):
         self._callback = cb
 
     def update_state_filter(self, events):
@@ -260,7 +260,6 @@ class FrequencyCam:
                         self._frame_number, self._events, fmap, self._freq_range, self._extra_args
                     )
                     self._events = []
-                    print(f'frame {self._frame_number} has events: ', f'{self._events_this_frame}')
                     self._events_this_frame = 0
                     self._frame_number += 1
                 event_list.append(e)
@@ -275,14 +274,13 @@ class FrequencyCam:
         # handle case of first event received
         if self._current_frame_end_time is None:
             self._current_frame_end_time = events[0]['t'] + self._frame_timeslice
-
         if events[-1]['t'] < self._current_frame_end_time:
             # in the not unusual case where all events in this call
             # belong to the current frame and there is no cross-over
             # into the next one, simply update the state and store the events
             self.update_state(events)
         else:
-            # need to split
+            # some events belong to next frame, need to split event packet
             event_list = []
             for e in events:
                 while e['t'] > self._current_frame_end_time:
@@ -295,9 +293,6 @@ class FrequencyCam:
                         self._frame_number, self._events, fmap, self._freq_range, self._extra_args
                     )
                     self._events = []
-                    print(
-                        f'frame {self._frame_number} has events: ' + f'{self._events_this_frame}'
-                    )
                     self._events_this_frame = 0
                     self._frame_number += 1
                     self._current_frame_end_time += self._frame_timeslice
