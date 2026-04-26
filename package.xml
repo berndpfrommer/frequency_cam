@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <package format="3">
   <name>frequency_cam</name>
-  <version>3.1.0</version>
+  <version>3.1.1</version>
   <description>frequency cam ROS/ROS2 package for event based cameras</description>
   <maintainer email="bernd.pfrommer@gmail.com">Bernd Pfrommer</maintainer>
   <license>Apache License 2.0</license>
