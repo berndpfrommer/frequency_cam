@@ -53,24 +53,39 @@ if(${image_transport_VERSION} VERSION_GREATER_EQUAL "6.4.0")
   add_definitions(-DIMAGE_TRANSPORT_USE_NODEINTERFACE)
 endif()
 
-ament_auto_find_build_dependencies(REQUIRED ${ROS2_DEPENDENCIES})
-
 #
 # ---- frequency_cam shared library/component
 #
-ament_auto_add_library(frequency_cam SHARED
+add_library(${PROJECT_NAME} SHARED
   src/frequency_cam.cpp src/image_maker.cpp src/frequency_cam_ros2.cpp)
+
+target_link_libraries(${PROJECT_NAME}
+  PUBLIC
+    rclcpp::rclcpp
+    rclcpp_components::component
+    rosbag2_cpp::rosbag2_cpp
+    ${event_camera_msgs_TARGETS}
+    ${event_camera_codecs_TARGETS}
+    image_transport::image_transport
+    cv_bridge::cv_bridge
+    ${std_msgs_TARGETS}
+)
+
+target_include_directories(${PROJECT_NAME} PUBLIC include)
+
 
 rclcpp_components_register_nodes(frequency_cam "frequency_cam::FrequencyCamROS")
 
-ament_auto_add_executable(frequency_cam_node src/frequency_cam_node_ros2.cpp)
-
+add_executable(frequency_cam_node src/frequency_cam_node_ros2.cpp)
+target_link_libraries(frequency_cam_node ${PROJECT_NAME})
+target_include_directories(frequency_cam_node PRIVATE include)
 
 #
 # cpu benchmark
 #
-ament_auto_add_executable(cpu_benchmark src/cpu_benchmark.cpp)
-
+add_executable(cpu_benchmark src/cpu_benchmark.cpp)
+target_link_libraries(cpu_benchmark ${PROJECT_NAME})
+target_include_directories(cpu_benchmark PRIVATE include)
 
 # -------- installation
 
@@ -78,7 +93,7 @@ ament_auto_add_executable(cpu_benchmark src/cpu_benchmark.cpp)
 # be used as a composable node by other projects
 
 install(TARGETS
-  frequency_cam
+  ${PROJECT_NAME}
   DESTINATION lib)
 
 # the node must go into the project specific lib directory or else
