@@ -94,11 +94,11 @@ bool FrequencyCamROS::initialize()
     // start statistics timer only when not playing from bag
     statsTimer_ = rclcpp::create_timer(
       this, this->get_clock(), rclcpp::Duration::from_seconds(2.0),
-      [=]() { this->statisticsTimerExpired(); });
+      [this]() { this->statisticsTimerExpired(); });
     // for ROS2 frame timer and subscriber are initialized right away
     frameTimer_ = rclcpp::create_timer(
       this, this->get_clock(), rclcpp::Duration::from_seconds(eventImageDt_),
-      [=]() { this->frameTimerExpired(); });
+      [this]() { this->frameTimerExpired(); });
 
     const size_t EVENT_QUEUE_DEPTH(1000);
     auto qos = rclcpp::QoS(rclcpp::KeepLast(EVENT_QUEUE_DEPTH)).best_effort().durability_volatile();
